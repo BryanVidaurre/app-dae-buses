@@ -5,9 +5,10 @@ import androidx.room.*
 import com.example.pda.database.dao.EstudianteDao
 import com.example.pda.database.entities.EstudianteEntity
 
-@Database(entities = [EstudianteEntity::class], version = 1)
+@Database(entities = [EstudianteEntity::class,AsistenciaEntity::class], version = 2)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun estudianteDao(): EstudianteDao
+    abstract fun asistenciaDao(): AsistenciaDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -16,7 +17,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java, "pda_database"
-                ).build()
+                ).fallbackToDestructiveMigration().build()
                 INSTANCE = instance
                 instance
             }

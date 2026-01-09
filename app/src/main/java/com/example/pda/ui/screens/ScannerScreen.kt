@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.example.pda.database.AsistenciaEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -102,11 +103,20 @@ fun ScannerScreen(busId: Int) {
                             isProcessing = true
 
                             scope.launch {
-                                Log.d("PDA_DEBUG", "🔎 Procesando token único: $qrCode")
+                                Log.d("PDA_DEBUG", "Procesando token único: $qrCode")
                                 val alumno = db.estudianteDao().buscarPorToken(qrCode)
 
                                 if (alumno != null) {
                                     toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                                    val nuevaAsistencia = AsistenciaEntity(
+                                        estudianteToken = qrCode,
+                                        pna_nom = alumno.pna_nom,
+                                        fecha_hora = System.currentTimeMillis(),
+                                        busId = busId,
+                                        sincronizado = false
+                                    )
+                                    db.asistenciaDao().insertarAsistencia(nuevaAsistencia)
+                                    Log.d("PDA_DEBUG", "Asistencia guardada para: ${alumno.pna_nom}")
                                     statusText = "${alumno.pna_nom}"
                                     statusType = "success"
                                     backgroundColor = Color(0xFF4CAF50).copy(alpha = 0.2f)
