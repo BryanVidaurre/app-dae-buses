@@ -5,10 +5,14 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "asistencias")
 data class AsistenciaEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val estudianteToken: String,
-    val pna_nom: String,
-    val fecha_hora: Long, // Guardaremos el timestamp (System.currentTimeMillis())
-    val busId: Int,
-    val sincronizado: Boolean = false // Para saber si ya se envió a NestJS
+    @PrimaryKey(autoGenerate = true)
+    val ingreso_id: Int = 0,        // PK en Postgres
+    val fecha_hora: Long,           // timestamp
+    val latitud: Double = 0.0,
+    val longitud: Double = 0.0,
+    val est_sem_id: Int,            // FK a estudiante_semestre
+    val bus_id: Int,                // FK a bus
+    val qr_id: Int,                 // FK a qr_token
+    val pna_nom: String,            // Auxiliar para mostrar en la lista local
+    val sincronizado: Boolean = false // Flag para saber qué subir
 )

@@ -109,12 +109,17 @@ fun ScannerScreen(busId: Int) {
                                 if (alumno != null) {
                                     toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
                                     val nuevaAsistencia = AsistenciaEntity(
-                                        estudianteToken = qrCode,
-                                        pna_nom = alumno.pna_nom,
                                         fecha_hora = System.currentTimeMillis(),
-                                        busId = busId,
+                                        latitud = 0.0,  // Debes pasar un valor, aunque sea 0.0 por ahora
+                                        longitud = 0.0, // Debes pasar un valor
+                                        est_sem_id = alumno.est_sem_id, // Usamos el ID que viene del alumno encontrado
+                                        bus_id = busId,                 // El busId que recibe el Composable
+                                        qr_id = alumno.qr_id,           // El ID del QR que viene del alumno
+                                        pna_nom = alumno.pna_nom,
                                         sincronizado = false
                                     )
+
+
                                     db.asistenciaDao().insertarAsistencia(nuevaAsistencia)
                                     Log.d("PDA_DEBUG", "Asistencia guardada para: ${alumno.pna_nom}")
                                     statusText = "${alumno.pna_nom}"

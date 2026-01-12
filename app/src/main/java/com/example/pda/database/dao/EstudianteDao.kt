@@ -13,4 +13,7 @@ interface EstudianteDao {
 
     @Query("DELETE FROM estudiantes_autorizados")
     suspend fun borrarTodo()
+
+    @Query("SELECT * FROM estudiantes_autorizados") // Ajusta 'estudiantes' al nombre de tu tabla de alumnos
+    suspend fun obtenerTodosDirecto(): List<EstudianteEntity>
 }

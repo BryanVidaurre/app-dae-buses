@@ -13,4 +13,5 @@ interface ApiService {
 
     @POST("ingresos/registrar")
     suspend fun registrarIngreso(@Body ingreso: CreateIngresoBusDto): Response<Unit>
+
 }
