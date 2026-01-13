@@ -16,42 +16,51 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         val database = AppDatabase.getDatabase(applicationContext)
         val dao = database.asistenciaDao()
-
-        // 1. Obtenemos las asistencias que no han sido enviadas al servidor
         val pendientes = dao.obtenerPendientesManual()
 
         if (pendientes.isEmpty()) return Result.success()
 
-        return try {
-            var algunError = false
+        var registrosExitosos = 0
+        var registrosFallidos = 0
 
+        return try {
             pendientes.forEach { asistencia ->
-                // 2. CORRECCIÓN: Convertimos fecha_hora (Long) a String para el DTO
                 val dto = CreateIngresoBusDto(
                     est_sem_id = asistencia.est_sem_id,
                     bus_id = asistencia.bus_id,
                     qr_id = asistencia.qr_id,
-                    fecha_hora = asistencia.fecha_hora.toString(), // Fix: Long to String
+                    fecha_hora = asistencia.fecha_hora.toString(),
                     latitud = asistencia.latitud,
                     longitud = asistencia.longitud
                 )
 
-                val response = RetrofitClient.instance.registrarIngreso(dto)
+                try {
+                    val response = RetrofitClient.instance.registrarIngreso(dto)
 
-                if (response.isSuccessful) {
-                    // 4. Marcamos como sincronizado usando el ID correcto: ingreso_id
-                    dao.marcarSincronizado(asistencia.ingreso_id)
-                    Log.d("SyncWorker", "Sincronizado: ${asistencia.pna_nom}")
-                } else {
-                    algunError = true
-                    Log.e("SyncWorker", "Error al sincronizar ID: ${asistencia.ingreso_id}")
+                    if (response.isSuccessful) {
+                        dao.marcarSincronizado(asistencia.ingreso_id)
+                        registrosExitosos++
+                        Log.d("SyncWorker", "Éxito: ${asistencia.pna_nom}")
+
+                        kotlinx.coroutines.delay(150)
+                    } else {
+                        registrosFallidos++
+                        Log.e("SyncWorker", "Error Servidor (Código ${response.code()}) en ID: ${asistencia.ingreso_id}")
+                    }
+                } catch (e: Exception) {
+                    registrosFallidos++
+                    Log.e("SyncWorker", "Error de red individual: ${e.message}")
+                    // No cortamos el bucle, intentamos con el siguiente
                 }
             }
 
-            if (algunError) Result.retry() else Result.success()
+            Log.d("SyncWorker", "Resumen: $registrosExitosos éxitos, $registrosFallidos fallos.")
+
+            // Si hubo fallos, pedimos a WorkManager que reintente más tarde
+            if (registrosFallidos > 0) Result.retry() else Result.success()
 
         } catch (e: Exception) {
-            Log.e("SyncWorker", "Fallo crítico de red o base de datos", e)
+            Log.e("SyncWorker", "Fallo crítico", e)
             Result.retry()
         }
     }

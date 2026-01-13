@@ -13,6 +13,8 @@ data class AsistenciaEntity(
     val est_sem_id: Int,            // FK a estudiante_semestre
     val bus_id: Int,                // FK a bus
     val qr_id: Int,                 // FK a qr_token
-    val pna_nom: String,            // Auxiliar para mostrar en la lista local
+    val pna_nom: String,
+    val pna_apat:String,
+    val pna_amat:String,
     val sincronizado: Boolean = false // Flag para saber qué subir
 )

@@ -5,7 +5,7 @@ import androidx.room.*
 import com.example.pda.database.dao.EstudianteDao
 import com.example.pda.database.entities.EstudianteEntity
 
-@Database(entities = [EstudianteEntity::class,AsistenciaEntity::class], version = 2)
+@Database(entities = [EstudianteEntity::class,AsistenciaEntity::class], version = 3)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun estudianteDao(): EstudianteDao
     abstract fun asistenciaDao(): AsistenciaDao

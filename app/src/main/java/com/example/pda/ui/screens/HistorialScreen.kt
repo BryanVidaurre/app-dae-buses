@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,12 +56,27 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(registro.pna_nom, style = MaterialTheme.typography.titleMedium)
+                                Text(registro.pna_nom+' '+registro.pna_apat+' '+registro.pna_amat, style = MaterialTheme.typography.titleMedium)
                                 Text("Escaneado a las: ${format.format(Date(registro.fecha_hora))}",
                                     style = MaterialTheme.typography.bodySmall)
                             }
-                            // Icono que indica que el registro vive solo en la tablet por ahora
-                            Icon(Icons.Default.Storage, contentDescription = null, tint = Color.Gray)
+                        }
+
+                        // Indicador de Sincronización
+                        Column(horizontalAlignment = Alignment.End) {
+                            val iconColor = if (registro.sincronizado) Color(0xFF4CAF50) else Color.Gray
+                            val statusText = if (registro.sincronizado) "Subido" else "Pendiente"
+
+                            Icon(
+                                imageVector = if (registro.sincronizado) Icons.Default.CloudDone else Icons.Default.Storage,
+                                contentDescription = null,
+                                tint = iconColor
+                            )
+                            Text(
+                                text = statusText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = iconColor
+                            )
                         }
                     }
                 }

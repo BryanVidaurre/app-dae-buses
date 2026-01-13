@@ -1,268 +1,459 @@
 package com.example.pda.ui.screens
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import com.example.pda.database.AppDatabase
-import kotlinx.coroutines.launch
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.util.Log
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.example.pda.database.AppDatabase
 import com.example.pda.database.AsistenciaEntity
+import com.example.pda.database.SessionManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun ScannerScreen(busId: Int) {
+fun ScannerScreen(
+    busId: Int,
+    onCerrarSesion: () -> Unit
+) {
     val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+
+    val realBusId = remember {
+        if (busId > 0) busId else sessionManager.obtenerBusId()
+    }
+    val busPatente = remember { sessionManager.obtenerBusNombre() ?: "Sin Patente" }
     val scope = rememberCoroutineScope()
     val db = AppDatabase.getDatabase(context)
 
-    var statusText by remember { mutableStateOf("Apunte al código QR del alumno") }
-    var backgroundColor by remember { mutableStateOf(Color.Transparent) }
-    var statusType by remember { mutableStateOf("waiting") } // waiting, success, error
+    var statusText by remember { mutableStateOf("Acerque el código QR") }
+    var statusType by remember { mutableStateOf("waiting") }
+    var showStatusCard by remember { mutableStateOf(false) }
     val toneGen = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
-
     var isProcessing by remember { mutableStateOf(false) }
+
+
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surface
+                    )
+                )
+            )
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            // HEADER MEJORADO
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shadowElevation = 8.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(20.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.QrCodeScanner,
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Column {
-                        Text(
-                            text = "Escáner de Acceso",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = "Bus ID: $busId",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Escáner QR",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(Color(0xFF4CAF50), CircleShape)
+                                )
+                                Text(
+                                    text = busPatente,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
+
+                    // Botón de salida mejorado
+                    FilledIconButton(
+                        onClick = onCerrarSesion,
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = "Cambiar Bus"
                         )
                     }
                 }
             }
 
-            // Camera Preview Area
+            // ÁREA DE CÁMARA MEJORADA
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(backgroundColor)
+                    .padding(24.dp)
             ) {
-                CameraPreview(
-                    modifier = Modifier.size(1.dp),
-                    onQrDetected = { qrCode ->
-                        if (!isProcessing) {
-                            isProcessing = true
+                // Marco de escáner con esquinas
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(
+                            when (statusType) {
+                                "success" -> Color(0xFF4CAF50).copy(alpha = 0.15f)
+                                "error" -> Color(0xFFF44336).copy(alpha = 0.15f)
+                                else -> Color.Black.copy(alpha = 0.05f)
+                            }
+                        )
+                        .border(
+                            width = 3.dp,
+                            color = when (statusType) {
+                                "success" -> Color(0xFF4CAF50)
+                                "error" -> Color(0xFFF44336)
+                                else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                            },
+                            shape = RoundedCornerShape(32.dp)
+                        )
+                ) {
+                    CameraPreview(
+                        modifier = Modifier.size(1.dp),
+                        onQrDetected = { qrCode ->
+                            if (!isProcessing) {
+                                isProcessing = true
+                                showStatusCard = false
+                                scope.launch {
+                                    val alumno = db.estudianteDao().buscarPorToken(qrCode)
 
-                            scope.launch {
-                                Log.d("PDA_DEBUG", "Procesando token único: $qrCode")
-                                val alumno = db.estudianteDao().buscarPorToken(qrCode)
+                                    if (alumno != null) {
+                                        val ahora = System.currentTimeMillis()
+                                        val margenTiempo = ahora - (30 * 60 * 1000)
 
-                                if (alumno != null) {
-                                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
-                                    val nuevaAsistencia = AsistenciaEntity(
-                                        fecha_hora = System.currentTimeMillis(),
-                                        latitud = 0.0,  // Debes pasar un valor, aunque sea 0.0 por ahora
-                                        longitud = 0.0, // Debes pasar un valor
-                                        est_sem_id = alumno.est_sem_id, // Usamos el ID que viene del alumno encontrado
-                                        bus_id = busId,                 // El busId que recibe el Composable
-                                        qr_id = alumno.qr_id,           // El ID del QR que viene del alumno
-                                        pna_nom = alumno.pna_nom,
-                                        sincronizado = false
-                                    )
+                                        val esDuplicado = db.asistenciaDao().existeRegistroReciente(
+                                            estSemId = alumno.est_sem_id,
+                                            haceDosHoras = margenTiempo
+                                        ) > 0
 
+                                        if (esDuplicado) {
+                                            toneGen.startTone(ToneGenerator.TONE_CDMA_LOW_L, 300)
+                                            statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
+                                            statusType = "success"
+                                            showStatusCard = true
+                                            delay(2500)
+                                        } else {
+                                            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                                            val nuevaAsistencia = AsistenciaEntity(
+                                                fecha_hora = ahora,
+                                                latitud = 0.0,
+                                                longitud = 0.0,
+                                                est_sem_id = alumno.est_sem_id,
+                                                bus_id = realBusId,
+                                                qr_id = alumno.qr_id,
+                                                pna_nom = alumno.pna_nom,
+                                                pna_apat = alumno.pna_apat,
+                                                pna_amat = alumno.pna_amat,
+                                                sincronizado = false
+                                            )
 
-                                    db.asistenciaDao().insertarAsistencia(nuevaAsistencia)
-                                    Log.d("PDA_DEBUG", "Asistencia guardada para: ${alumno.pna_nom}")
-                                    statusText = "${alumno.pna_nom}"
-                                    statusType = "success"
-                                    backgroundColor = Color(0xFF4CAF50).copy(alpha = 0.2f)
+                                            db.asistenciaDao().insertarAsistencia(nuevaAsistencia)
+                                            statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
+                                            statusType = "success"
+                                            showStatusCard = true
+                                            delay(2500)
+                                        }
+                                    } else {
+                                        toneGen.startTone(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, 500)
+                                        statusText = "Estudiante no registrado"
+                                        statusType = "error"
+                                        showStatusCard = true
+                                        delay(2000)
+                                    }
 
-                                    delay(2500)
-                                } else {
-                                    toneGen.startTone(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, 500)
-
-                                    statusText = "Sin Registro"
-                                    statusType = "error"
-
-                                    backgroundColor = Color(0xFFF44336).copy(alpha = 0.6f)
-
-                                    Log.e("PDA_DEBUG", "QR leído pero no existe en la DB local: $qrCode")
-
-                                    delay(2000)
+                                    statusText = "Acerque el código QR"
+                                    statusType = "waiting"
+                                    showStatusCard = false
+                                    isProcessing = false
                                 }
-
-                                backgroundColor = Color.Transparent
-                                statusText = "Apunte al código QR del alumno"
-                                statusType = "waiting"
-                                isProcessing = false
                             }
                         }
-                    }
-                )
+                    )
 
-                // Overlay con instrucciones cuando está esperando
-                if (statusType == "waiting") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                            ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    // Overlay de instrucciones
+                    if (statusType == "waiting" && !showStatusCard) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                modifier = Modifier.padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            Card(
+                                modifier = Modifier.padding(32.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                                shape = RoundedCornerShape(24.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.QrCodeScanner,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "Listo para escanear",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
-                                    text = "Apunte la cámara al código QR del alumno",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Center,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                )
+                                Column(
+                                    modifier = Modifier.padding(32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.QrCodeScanner,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(72.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Listo para escanear",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Acerque el código QR a la cámara",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
                         }
                     }
+
+                    // Esquinas decorativas del marco de escáner
+                    CornerOverlays()
                 }
             }
 
-            // Status Card at bottom
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = when (statusType) {
-                        "success" -> MaterialTheme.colorScheme.primaryContainer
-                        "error" -> MaterialTheme.colorScheme.errorContainer
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    }
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            // TARJETA DE ESTADO MEJORADA
+            AnimatedVisibility(
+                visible = showStatusCard,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
             ) {
-                Row(
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(24.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    colors = CardDefaults.cardColors(
+                        containerColor = when (statusType) {
+                            "success" -> Color(0xFFE8F5E9)
+                            "error" -> Color(0xFFFFEBEE)
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        }
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    shape = RoundedCornerShape(24.dp)
                 ) {
-                    when (statusType) {
-                        "success" -> Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = Color(0xFF2E7D32)
-                        )
-                        "error" -> Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = Color(0xFFC62828)
-                        )
-                        else -> Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(
+                                    color = if (statusType == "success")
+                                        Color(0xFF4CAF50).copy(alpha = 0.2f)
+                                    else
+                                        Color(0xFFF44336).copy(alpha = 0.2f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (statusType == "success")
+                                    Icons.Default.CheckCircle
+                                else
+                                    Icons.Default.Error,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = if (statusType == "success")
+                                    Color(0xFF2E7D32)
+                                else
+                                    Color(0xFFC62828)
+                            )
+                        }
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = when (statusType) {
-                                "success" -> "✅ AUTORIZADO"
-                                "error" -> "❌ NO AUTORIZADO"
-                                else -> "ESPERANDO"
-                            },
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = when (statusType) {
-                                "success" -> Color(0xFF2E7D32)
-                                "error" -> Color(0xFFC62828)
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = statusText,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = when (statusType) {
-                                "success" -> MaterialTheme.colorScheme.onPrimaryContainer
-                                "error" -> MaterialTheme.colorScheme.onErrorContainer
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (statusType == "success") "AUTORIZADO" else "AVISO",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = if (statusType == "success")
+                                    Color(0xFF2E7D32)
+                                else
+                                    Color(0xFFC62828)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = statusText,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+fun BoxScope.CornerOverlays() {
+    val cornerSize = 40.dp
+    val cornerThickness = 4.dp
+    val cornerColor = MaterialTheme.colorScheme.primary
+
+    // Esquina superior izquierda
+    Box(
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .padding(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(cornerSize)
+                .height(cornerThickness)
+                .background(cornerColor, RoundedCornerShape(topStart = 4.dp))
+        )
+        Box(
+            modifier = Modifier
+                .width(cornerThickness)
+                .height(cornerSize)
+                .background(cornerColor, RoundedCornerShape(topStart = 4.dp))
+        )
+    }
+
+    // Esquina superior derecha
+    Box(
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .padding(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(cornerSize)
+                .height(cornerThickness)
+                .align(Alignment.TopEnd)
+                .background(cornerColor, RoundedCornerShape(topEnd = 4.dp))
+        )
+        Box(
+            modifier = Modifier
+                .width(cornerThickness)
+                .height(cornerSize)
+                .align(Alignment.TopEnd)
+                .background(cornerColor, RoundedCornerShape(topEnd = 4.dp))
+        )
+    }
+
+    // Esquina inferior izquierda
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomStart)
+            .padding(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(cornerSize)
+                .height(cornerThickness)
+                .align(Alignment.BottomStart)
+                .background(cornerColor, RoundedCornerShape(bottomStart = 4.dp))
+        )
+        Box(
+            modifier = Modifier
+                .width(cornerThickness)
+                .height(cornerSize)
+                .align(Alignment.BottomStart)
+                .background(cornerColor, RoundedCornerShape(bottomStart = 4.dp))
+        )
+    }
+
+    // Esquina inferior derecha
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(cornerSize)
+                .height(cornerThickness)
+                .align(Alignment.BottomEnd)
+                .background(cornerColor, RoundedCornerShape(bottomEnd = 4.dp))
+        )
+        Box(
+            modifier = Modifier
+                .width(cornerThickness)
+                .height(cornerSize)
+                .align(Alignment.BottomEnd)
+                .background(cornerColor, RoundedCornerShape(bottomEnd = 4.dp))
+        )
     }
 }
