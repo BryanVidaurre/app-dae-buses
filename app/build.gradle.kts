@@ -40,6 +40,7 @@ android {
 }
 
 dependencies {
+    implementation("com.google.android.gms:play-services-location:21.0.1")
     implementation("com.google.guava:guava:33.0.0-android")
     implementation(libs.androidx.compose.ui.graphics)
     // --- 1. ROOM (Usando KSP para evitar errores de Metadata) ---

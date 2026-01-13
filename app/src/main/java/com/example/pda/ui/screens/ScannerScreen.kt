@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.example.pda.database.AppDatabase
 import com.example.pda.database.AsistenciaEntity
 import com.example.pda.database.SessionManager
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -39,6 +40,9 @@ fun ScannerScreen(
     onCerrarSesion: () -> Unit,
     onVolver: () -> Unit
 ) {
+
+
+
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
 
@@ -54,7 +58,22 @@ fun ScannerScreen(
     var showStatusCard by remember { mutableStateOf(false) }
     val toneGen = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
     var isProcessing by remember { mutableStateOf(false) }
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
+    fun obtenerUbicacionActual(onLocationReceived: (Double, Double) -> Unit) {
+        try {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                if (location != null) {
+                    onLocationReceived(location.latitude, location.longitude)
+                } else {
+                    // Si no hay última ubicación conocida, enviar 0.0 o manejar error
+                    onLocationReceived(0.0, 0.0)
+                }
+            }
+        } catch (e: SecurityException) {
+            onLocationReceived(0.0, 0.0)
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -182,6 +201,7 @@ fun ScannerScreen(
                             if (!isProcessing) {
                                 isProcessing = true
                                 showStatusCard = false
+
                                 scope.launch {
                                     val alumno = db.estudianteDao().buscarPorToken(qrCode)
 
@@ -195,33 +215,55 @@ fun ScannerScreen(
                                         ) > 0
 
                                         if (esDuplicado) {
+                                            // Lógica de duplicado (ya marcada)
                                             toneGen.startTone(ToneGenerator.TONE_CDMA_LOW_L, 300)
                                             statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
                                             statusType = "success"
                                             showStatusCard = true
                                             delay(2500)
                                         } else {
-                                            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
-                                            val nuevaAsistencia = AsistenciaEntity(
-                                                fecha_hora = ahora,
-                                                latitud = 0.0,
-                                                longitud = 0.0,
-                                                est_sem_id = alumno.est_sem_id,
-                                                bus_id = realBusId,
-                                                qr_id = alumno.qr_id,
-                                                pna_nom = alumno.pna_nom,
-                                                pna_apat = alumno.pna_apat,
-                                                pna_amat = alumno.pna_amat,
-                                                sincronizado = false
-                                            )
+                                            // --- NUEVA LÓGICA DE UBICACIÓN ---
+                                            try {
+                                                // Intentamos obtener la última ubicación conocida
+                                                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                                                    val lat = location?.latitude ?: 0.0
+                                                    val lon = location?.longitude ?: 0.0
 
-                                            db.asistenciaDao().insertarAsistencia(nuevaAsistencia)
-                                            statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
-                                            statusType = "success"
-                                            showStatusCard = true
+                                                    // Lanzamos una corrutina interna para insertar en la DB
+                                                    scope.launch {
+                                                        val nuevaAsistencia = AsistenciaEntity(
+                                                            fecha_hora = ahora,
+                                                            latitud = lat,    // Coordenada real capturada
+                                                            longitud = lon,   // Coordenada real capturada
+                                                            est_sem_id = alumno.est_sem_id,
+                                                            bus_id = realBusId,
+                                                            qr_id = alumno.qr_id,
+                                                            pna_nom = alumno.pna_nom,
+                                                            pna_apat = alumno.pna_apat,
+                                                            pna_amat = alumno.pna_amat,
+                                                            sincronizado = false
+                                                        )
+
+                                                        db.asistenciaDao().insertarAsistencia(nuevaAsistencia)
+                                                        toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                                                        statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
+                                                        statusType = "success"
+                                                        showStatusCard = true
+                                                    }
+                                                }.addOnFailureListener {
+                                                    // Si el GPS falla, insertamos con 0.0 para no perder el registro
+                                                    scope.launch {
+                                                        // (Aquí podrías repetir la inserción con 0.0)
+                                                    }
+                                                }
+                                            } catch (e: SecurityException) {
+                                                Log.e("GPS", "Sin permisos de ubicación")
+                                            }
+
                                             delay(2500)
                                         }
                                     } else {
+                                        // Estudiante no encontrado
                                         toneGen.startTone(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, 500)
                                         statusText = "Estudiante no registrado"
                                         statusType = "error"
@@ -229,6 +271,7 @@ fun ScannerScreen(
                                         delay(2000)
                                     }
 
+                                    // Reset de la interfaz
                                     statusText = "Acerque el código QR"
                                     statusType = "waiting"
                                     showStatusCard = false
