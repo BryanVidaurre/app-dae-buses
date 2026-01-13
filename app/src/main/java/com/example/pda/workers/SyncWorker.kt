@@ -20,11 +20,12 @@ class SyncWorker(
 
         if (pendientes.isEmpty()) return Result.success()
 
-        var registrosExitosos = 0
+        val batchSincronizacion = pendientes.take(50)
+
         var registrosFallidos = 0
 
         return try {
-            pendientes.forEach { asistencia ->
+            batchSincronizacion.forEach { asistencia ->
                 val dto = CreateIngresoBusDto(
                     est_sem_id = asistencia.est_sem_id,
                     bus_id = asistencia.bus_id,
@@ -39,28 +40,29 @@ class SyncWorker(
 
                     if (response.isSuccessful) {
                         dao.marcarSincronizado(asistencia.ingreso_id)
-                        registrosExitosos++
-                        Log.d("SyncWorker", "Éxito: ${asistencia.pna_nom}")
-
-                        kotlinx.coroutines.delay(150)
+                        // Pausa un poco más larga para dejar respirar a Postgres
+                        kotlinx.coroutines.delay(300)
+                    } else if (response.code() == 429 || response.code() >= 500) {
+                        // Si el servidor está saturado (429) o fallando (500),
+                        // detenemos el bucle y reintentamos todo el worker más tarde.
+                        return Result.retry()
                     } else {
                         registrosFallidos++
-                        Log.e("SyncWorker", "Error Servidor (Código ${response.code()}) en ID: ${asistencia.ingreso_id}")
                     }
                 } catch (e: Exception) {
-                    registrosFallidos++
-                    Log.e("SyncWorker", "Error de red individual: ${e.message}")
-                    // No cortamos el bucle, intentamos con el siguiente
+                    Log.e("SyncWorker", "Error de red: ${e.message}")
+                    // Si no hay internet del todo, mejor reintentar luego
+                    return Result.retry()
                 }
             }
 
-            Log.d("SyncWorker", "Resumen: $registrosExitosos éxitos, $registrosFallidos fallos.")
-
-            // Si hubo fallos, pedimos a WorkManager que reintente más tarde
-            if (registrosFallidos > 0) Result.retry() else Result.success()
+            if (registrosFallidos > 0 || pendientes.size > batchSincronizacion.size) {
+                Result.retry()
+            } else {
+                Result.success()
+            }
 
         } catch (e: Exception) {
-            Log.e("SyncWorker", "Fallo crítico", e)
             Result.retry()
         }
     }

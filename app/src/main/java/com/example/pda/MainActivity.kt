@@ -1,6 +1,5 @@
 package com.example.pda
 
-
 import androidx.compose.material3.TextFieldDefaults
 import android.os.Bundle
 import android.util.Log
@@ -8,16 +7,23 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -46,7 +52,6 @@ class MainActivity : ComponentActivity() {
             PDATheme {
                 val navController = rememberNavController()
 
-                // Destino inicial basado solo en el ID
                 val startDestination = if (sessionManager.estaBusSeleccionado()) {
                     "scanner/${sessionManager.obtenerBusId()}"
                 } else {
@@ -59,8 +64,7 @@ class MainActivity : ComponentActivity() {
                         MainScreen(
                             sessionManager = sessionManager,
                             onIrAlScanner = { busId ->
-                                navController.navigate("scanner/$busId") {
-                                }
+                                navController.navigate("scanner/$busId")
                             },
                             onVerHistorial = { navController.navigate("historial") }
                         )
@@ -81,8 +85,8 @@ class MainActivity : ComponentActivity() {
                                 onCerrarSesion = {
                                     sessionManager.cerrarSesionBus()
                                     navController.navigate("seleccion") { popUpTo(0) }
-                                },onVolver = {
-                                    // Esta es la clave: volver sin borrar nada del SessionManager
+                                },
+                                onVolver = {
                                     navController.popBackStack()
                                 }
                             )
@@ -126,7 +130,6 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     val db = AppDatabase.getDatabase(context)
 
-// En lugar de inicializar con null/vacío, leemos del SessionManager
     var selectedBusId by remember {
         mutableStateOf<Int?>(sessionManager.obtenerBusId().takeIf { it > 0 })
     }
@@ -134,7 +137,6 @@ fun MainScreen(
         mutableStateOf(sessionManager.obtenerBusNombre() ?: "Seleccione un bus")
     }
 
-// Cargamos la lista de buses desde el cache inmediatamente
     var busList by remember {
         mutableStateOf(sessionManager.obtenerListaBusesCache())
     }
@@ -142,33 +144,28 @@ fun MainScreen(
     var expanded by remember { mutableStateOf(false) }
     var estaSincronizando by remember { mutableStateOf(false) }
     var datosListos by remember { mutableStateOf(sessionManager.obtenerBusId() > 0) }
+    var mostrarMensajeBienvenida by remember { mutableStateOf(selectedBusId == null) }
 
-// Usamos una clave que no cambie, para que solo se ejecute al "montar" el componente
     LaunchedEffect(key1 = true) {
-        // 1. Verificación instantánea
         val estudiantesLocales = db.estudianteDao().obtenerTodosDirecto()
         if (estudiantesLocales.isNotEmpty()) {
             datosListos = true
         }
 
-        // 2. Control de saturación para el Backend
         if (estaSincronizando) return@LaunchedEffect
 
         try {
             estaSincronizando = true
-            // Primero buses
             val respuestaBuses = RetrofitClient.instance.getBuses().filter { !it.deleted }
             if (respuestaBuses.isNotEmpty()) {
                 busList = respuestaBuses
                 sessionManager.guardarListaBuses(respuestaBuses)
             }
 
-            // Luego estudiantes
             val alumnosApi = RetrofitClient.instance.getEstudiantesAutorizados()
             if (alumnosApi.isNotEmpty()) {
-                // TRANSACCIÓN SEGURA: Solo borramos si tenemos con qué reemplazar
                 db.estudianteDao().borrarTodo()
-                db.estudianteDao().insertarEstudiantes(alumnosApi.map { it ->
+                db.estudianteDao().insertarEstudiantes(alumnosApi.map {
                     EstudianteEntity(
                         per_id = it.per_id,
                         pna_nom = it.pna_nom,
@@ -183,108 +180,355 @@ fun MainScreen(
             }
         } catch (e: Exception) {
             Log.e("SYNC_ERROR", "Error: ${e.message}")
-            // Si hay error (como el 53300), datosListos sigue siendo true
-            // si la verificación inicial (paso 1) fue exitosa.
         } finally {
             estaSincronizando = false
         }
     }
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier.padding(innerPadding).padding(16.dp).fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("PDA - Control de Acceso", style = MaterialTheme.typography.headlineMedium)
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Indicador de estado de sincronización
-            if (estaSincronizando) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                Text("Actualizando base de datos...", style = MaterialTheme.typography.bodySmall)
-            } else if (datosListos) {
-                Text("Base de datos lista para uso Offline", color = Color(0xFF4CAF50), style = MaterialTheme.typography.bodySmall)
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-// Campo de Selección de Bus
-            Box(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = selectedBusPatente,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Patente del Bus") },
-                    modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = { Icon(Icons.Default.DirectionsBus, null) },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color(0xFF355085),
-                        unfocusedIndicatorColor = Color.Gray
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                        MaterialTheme.colorScheme.background
                     )
                 )
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // HEADER CON LOGO
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.secondary
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DirectionsBus,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = Color.White
+                    )
+                }
 
-                // Capa de clic
-                Box(modifier = Modifier
-                    .matchParentSize()
-                    .clickable {
-                        if (busList.isNotEmpty()) {
-                            expanded = true
-                        } else {
-                            Toast.makeText(context, "Lista vacía. Conéctese a internet una vez.", Toast.LENGTH_LONG).show()
+                Text(
+                    text = "CONTROL DE ACCESO",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // CONTENIDO PRINCIPAL
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Mensaje de bienvenida
+                AnimatedVisibility(
+                    visible = mostrarMensajeBienvenida,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Bienvenido",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Seleccione un bus para comenzar",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                            IconButton(
+                                onClick = { mostrarMensajeBienvenida = false }
+                            ) {
+                                Icon(Icons.Default.Close, "Cerrar")
+                            }
                         }
                     }
-                )
+                }
 
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.fillMaxWidth(0.9f)
+                // Estado de sincronización
+                AnimatedVisibility(
+                    visible = estaSincronizando,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
                 ) {
-                    busList.forEach { bus ->
-                        DropdownMenuItem(
-                            text = { Text(bus.bus_patente) },
-                            onClick = {
-                                selectedBusPatente = bus.bus_patente
-                                selectedBusId = bus.bus_id
-                                expanded = false
-                                // Persistencia física
-                                sessionManager.guardarBus(bus.bus_id, bus.bus_patente)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(40.dp),
+                                strokeWidth = 4.dp
+                            )
+                            Text(
+                                text = "Actualizando base de datos...",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                // Estado de datos listos
+                AnimatedVisibility(
+                    visible = datosListos && !estaSincronizando,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFE8F5E9)
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Base de datos lista para uso offline",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
+                    }
+                }
+
+                // Selector de Bus
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DirectionsBus,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             }
-                        )
+                            Text(
+                                text = "Seleccionar Bus",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = selectedBusPatente,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Patente del Bus") },
+                                modifier = Modifier.fillMaxWidth(),
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null
+                                    )
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clickable {
+                                        if (busList.isNotEmpty()) {
+                                            expanded = true
+                                        } else {
+                                            Toast
+                                                .makeText(
+                                                    context,
+                                                    "Lista vacía. Conéctese a internet una vez.",
+                                                    Toast.LENGTH_LONG
+                                                )
+                                                .show()
+                                        }
+                                    }
+                            )
+
+                            DropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false },
+                                modifier = Modifier.fillMaxWidth(0.9f)
+                            ) {
+                                busList.forEach { bus ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.DirectionsBus,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                                Text(
+                                                    text = bus.bus_patente,
+                                                    style = MaterialTheme.typography.bodyLarge
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            selectedBusPatente = bus.bus_patente
+                                            selectedBusId = bus.bus_id
+                                            expanded = false
+                                            sessionManager.guardarBus(bus.bus_id, bus.bus_patente)
+                                            mostrarMensajeBienvenida = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Botón Principal
-            Button(
-                onClick = {
-                    selectedBusId?.let { onIrAlScanner(it) }
-                },
-                // El botón se habilita si hay datos descargados Y un bus seleccionado
-                enabled = datosListos && selectedBusId != null,
-                modifier = Modifier.fillMaxWidth().height(60.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF355085))
+            // BOTONES DE ACCIÓN
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Default.QrCodeScanner, null)
-                Spacer(Modifier.width(8.dp))
-                Text("INICIAR ESCÁNER QR")
-            }
+                Button(
+                    onClick = {
+                        selectedBusId?.let { onIrAlScanner(it) }
+                    },
+                    enabled = datosListos && selectedBusId != null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 8.dp
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCodeScanner,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "INICIAR ESCÁNER QR",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón Historial
-            OutlinedButton(
-                onClick = onVerHistorial,
-                modifier = Modifier.fillMaxWidth().height(60.dp)
-            ) {
-                Icon(Icons.Default.History, null)
-                Spacer(Modifier.width(8.dp))
-                Text("VER PASAJEROS DE HOY")
+                OutlinedButton(
+                    onClick = onVerHistorial,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                        width = 2.dp
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "VER PASAJEROS DE HOY",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }
