@@ -2,7 +2,9 @@ package com.example.pda.database
 
 import android.content.Context
 import android.content.SharedPreferences
-
+import com.example.pda.models.BusResponse
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 class SessionManager(context: Context) {
 
     // Nombre del archivo de preferencias
@@ -55,5 +57,16 @@ class SessionManager(context: Context) {
         val editor = prefs.edit()
         editor.clear()
         editor.apply()
+    }
+
+    fun guardarListaBuses(buses: List<BusResponse>) {
+        val json = Gson().toJson(buses)
+        prefs.edit().putString("buses_cache", json).apply()
+    }
+
+    fun obtenerListaBusesCache(): List<BusResponse> {
+        val json = prefs.getString("buses_cache", null) ?: return emptyList()
+        val type = object : TypeToken<List<BusResponse>>() {}.type
+        return Gson().fromJson(json, type)
     }
 }
