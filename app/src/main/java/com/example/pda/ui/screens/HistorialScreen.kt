@@ -50,7 +50,6 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
             )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // HEADER MEJORADO
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -84,7 +83,7 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Pasajeros de Hoy",
+                                text = "Pasajeros ",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer

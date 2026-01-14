@@ -16,53 +16,48 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         val database = AppDatabase.getDatabase(applicationContext)
         val dao = database.asistenciaDao()
-        val pendientes = dao.obtenerPendientesManual()
 
+        // 1. Obtenemos todos los registros pendientes
+        val pendientes = dao.obtenerPendientesManual()
         if (pendientes.isEmpty()) return Result.success()
 
-        val batchSincronizacion = pendientes.take(50)
+        // 2. Tomamos un lote (ahora podemos subirlo a 50 sin miedo porque es una sola petición)
+        val registrosParaEnviar = pendientes.take(50)
 
-        var registrosFallidos = 0
+        // 3. Transformamos la lista de la DB local a la lista de DTOs para el servidor
+        val listaDtos = registrosParaEnviar.map { asistencia ->
+            CreateIngresoBusDto(
+                est_sem_id = asistencia.est_sem_id,
+                bus_id = asistencia.bus_id,
+                qr_id = asistencia.qr_id,
+                fecha_hora = asistencia.fecha_hora.toString(),
+                latitud = asistencia.latitud,
+                longitud = asistencia.longitud
+            )
+        }
 
         return try {
-            batchSincronizacion.forEach { asistencia ->
-                val dto = CreateIngresoBusDto(
-                    est_sem_id = asistencia.est_sem_id,
-                    bus_id = asistencia.bus_id,
-                    qr_id = asistencia.qr_id,
-                    fecha_hora = asistencia.fecha_hora.toString(),
-                    latitud = asistencia.latitud,
-                    longitud = asistencia.longitud
-                )
+            Log.d("SyncWorker", "Iniciando sincronización masiva de ${listaDtos.size} registros")
 
-                try {
-                    val response = RetrofitClient.instance.registrarIngreso(dto)
+            // 4. Enviamos TODO el lote en una sola llamada HTTP
+            val response = RetrofitClient.instance.registrarIngresosBulk(listaDtos)
 
-                    if (response.isSuccessful) {
-                        dao.marcarSincronizado(asistencia.ingreso_id)
-                        // Pausa un poco más larga para dejar respirar a Postgres
-                        kotlinx.coroutines.delay(300)
-                    } else if (response.code() == 429 || response.code() >= 500) {
-                        // Si el servidor está saturado (429) o fallando (500),
-                        // detenemos el bucle y reintentamos todo el worker más tarde.
-                        return Result.retry()
-                    } else {
-                        registrosFallidos++
-                    }
-                } catch (e: Exception) {
-                    Log.e("SyncWorker", "Error de red: ${e.message}")
-                    // Si no hay internet del todo, mejor reintentar luego
-                    return Result.retry()
+            if (response.isSuccessful) {
+                // 5. Si el servidor guardó todo bien, marcamos todos como sincronizados localmente
+                registrosParaEnviar.forEach {
+                    dao.marcarSincronizado(it.ingreso_id)
                 }
-            }
 
-            if (registrosFallidos > 0 || pendientes.size > batchSincronizacion.size) {
-                Result.retry()
+                Log.d("SyncWorker", "Sincronización masiva exitosa")
+
+                // Si aún quedan más en la DB, reintentamos para procesar el siguiente lote
+                if (pendientes.size > registrosParaEnviar.size) Result.retry() else Result.success()
             } else {
-                Result.success()
+                Log.e("SyncWorker", "Error en servidor: ${response.code()}")
+                Result.retry()
             }
-
         } catch (e: Exception) {
+            Log.e("SyncWorker", "Error de red crítico: ${e.message}")
             Result.retry()
         }
     }

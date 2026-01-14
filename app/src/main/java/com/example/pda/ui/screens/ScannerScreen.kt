@@ -40,9 +40,6 @@ fun ScannerScreen(
     onCerrarSesion: () -> Unit,
     onVolver: () -> Unit
 ) {
-
-
-
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
 
