@@ -193,11 +193,15 @@ fun ScannerScreen(
                         )
                 ) {
                     CameraPreview(
+
                         modifier = Modifier.size(1.dp),
+
                         onQrDetected = { qrCode ->
+
                             if (!isProcessing) {
                                 isProcessing = true
                                 showStatusCard = false
+
 
                                 scope.launch {
                                     val alumno = db.estudianteDao().buscarPorToken(qrCode)
@@ -213,7 +217,7 @@ fun ScannerScreen(
 
                                         if (esDuplicado) {
                                             // Lógica de duplicado (ya marcada)
-                                            toneGen.startTone(ToneGenerator.TONE_CDMA_LOW_L, 300)
+                                            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
                                             statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
                                             statusType = "success"
                                             showStatusCard = true
@@ -269,7 +273,6 @@ fun ScannerScreen(
                                     }
 
                                     // Reset de la interfaz
-                                    statusText = "Acerque el código QR"
                                     statusType = "waiting"
                                     showStatusCard = false
                                     isProcessing = false
