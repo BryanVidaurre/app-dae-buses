@@ -51,8 +51,7 @@ class MainActivity : ComponentActivity() {
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ ->
-    }
+    ) { _ -> }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -168,8 +167,8 @@ fun MainScreen(
     val context = LocalContext.current
     val db = AppDatabase.getDatabase(context)
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
 
-    // --- ESTADOS REACTIVOS ---
     var hasCamera by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
     var hasLocation by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) }
 
@@ -180,7 +179,37 @@ fun MainScreen(
     var estaSincronizando by remember { mutableStateOf(false) }
     var datosListos by remember { mutableStateOf(false) }
 
-    // Actualizador de permisos automático al volver a la App
+    // Función para actualizar datos (Llamada al iniciar y por el botón)
+    val actualizarDatosAction = {
+        scope.launch {
+            try {
+                estaSincronizando = true
+                // 1. Obtener Buses
+                val respuestaBuses = RetrofitClient.instance.getBuses().filter { !it.deleted }
+                if (respuestaBuses.isNotEmpty()) {
+                    busList = respuestaBuses
+                    sessionManager.guardarListaBuses(respuestaBuses)
+                }
+
+                // 2. Obtener Estudiantes y Limpiar previos
+                val alumnosApi = RetrofitClient.instance.getEstudiantesAutorizados()
+                if (alumnosApi.isNotEmpty()) {
+                    db.estudianteDao().borrarTodo() // <--- Limpieza de datos antiguos
+                    db.estudianteDao().insertarEstudiantes(alumnosApi.map {
+                        EstudianteEntity(it.per_id, it.pna_nom, it.pna_apat ?: "", it.pna_amat ?: "", it.token, it.est_sem_id, it.qr_id)
+                    })
+                    datosListos = true
+                    Toast.makeText(context, "Sincronización exitosa", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("SYNC", "Error: ${e.message}")
+                Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+            } finally {
+                estaSincronizando = false
+            }
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -195,28 +224,7 @@ fun MainScreen(
     LaunchedEffect(Unit) {
         val locales = db.estudianteDao().obtenerTodosDirecto()
         if (locales.isNotEmpty()) { datosListos = true }
-
-        try {
-            estaSincronizando = true
-            val respuestaBuses = RetrofitClient.instance.getBuses().filter { !it.deleted }
-            if (respuestaBuses.isNotEmpty()) {
-                busList = respuestaBuses
-                sessionManager.guardarListaBuses(respuestaBuses)
-            }
-
-            val alumnosApi = RetrofitClient.instance.getEstudiantesAutorizados()
-            if (alumnosApi.isNotEmpty()) {
-                db.estudianteDao().borrarTodo()
-                db.estudianteDao().insertarEstudiantes(alumnosApi.map {
-                    EstudianteEntity(it.per_id, it.pna_nom, it.pna_apat ?: "", it.pna_amat ?: "", it.token, it.est_sem_id, it.qr_id)
-                })
-                datosListos = true
-            }
-        } catch (e: Exception) {
-            Log.e("SYNC", "Error: ${e.message}")
-        } finally {
-            estaSincronizando = false
-        }
+        actualizarDatosAction()
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), Color.White)))) {
@@ -224,7 +232,6 @@ fun MainScreen(
             modifier = Modifier.fillMaxSize().padding(24.dp).statusBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // HEADER
             Spacer(modifier = Modifier.height(20.dp))
             Box(
                 modifier = Modifier.size(90.dp).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)), CircleShape),
@@ -236,17 +243,21 @@ fun MainScreen(
             Text("CONTROL DE ACCESO", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
 
-            OfflineStatusBadge(datosListos = datosListos)
-
-            // CONTENIDO CENTRAL
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-
-                // Mensaje de Permisos con Animación de entrada/salida
-                AnimatedVisibility(
-                    visible = !hasCamera || !hasLocation,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
+            // FILA DE ESTADO Y BOTÓN DE REFRESH
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                OfflineStatusBadge(datosListos = datosListos)
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = { actualizarDatosAction() },
+                    enabled = !estaSincronizando,
+                    modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), CircleShape)
                 ) {
+                    Icon(Icons.Default.Refresh, "Actualizar", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                AnimatedVisibility(visible = !hasCamera || !hasLocation) {
                     Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error)
@@ -256,22 +267,11 @@ fun MainScreen(
                     }
                 }
 
-                if (datosListos && !estaSincronizando) {
-                    Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(12.dp))
-                            Text("Base de datos cargada. Puedes trabajar sin conexión.", style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-
                 AnimatedVisibility(visible = estaSincronizando) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp).clip(CircleShape))
                 }
 
                 Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(8.dp), shape = RoundedCornerShape(24.dp)) {
-                    // ... Selector de Bus (Igual que antes)
                     Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text("Configuración", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Box(modifier = Modifier.fillMaxWidth()) {
@@ -300,14 +300,12 @@ fun MainScreen(
                 }
             }
 
-            // BOTONES
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.navigationBarsPadding()) {
                 Button(
                     onClick = { selectedBusId?.let { onIrAlScanner(it) } },
                     enabled = datosListos && selectedBusId != null && hasCamera && hasLocation,
                     modifier = Modifier.fillMaxWidth().height(65.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    shape = RoundedCornerShape(20.dp)
                 ) {
                     Icon(Icons.Default.QrCodeScanner, null)
                     Spacer(Modifier.width(12.dp))
