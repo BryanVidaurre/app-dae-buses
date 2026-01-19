@@ -32,9 +32,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.work.*
 import com.example.pda.api.RetrofitClient
 import com.example.pda.database.SessionManager
@@ -63,6 +65,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             PDATheme {
                 val navController = rememberNavController()
+
+                // PERSISTENCIA: Si hay bus guardado, va directo al Scanner
                 val startDestination = if (sessionManager.estaBusSeleccionado()) {
                     "scanner/${sessionManager.obtenerBusId()}"
                 } else {
@@ -73,25 +77,33 @@ class MainActivity : ComponentActivity() {
                     composable("seleccion") {
                         MainScreen(
                             sessionManager = sessionManager,
-                            onIrAlScanner = { busId -> navController.navigate("scanner/$busId") },
+                            onIrAlScanner = { busId ->
+                                navController.navigate("scanner/$busId") {
+                                    // Limpiamos el stack para que no pueda volver atrás a selección
+                                    popUpTo("seleccion") { inclusive = true }
+                                }
+                            },
                             onVerHistorial = { navController.navigate("historial") }
                         )
                     }
 
-                    composable("scanner/{busId}") { backStackEntry ->
-                        val busId = backStackEntry.arguments?.getString("busId")?.toIntOrNull() ?: -1
-                        if (busId <= 0) {
-                            LaunchedEffect(Unit) { navController.navigate("seleccion") { popUpTo(0) } }
-                        } else {
-                            ScannerScreen(
-                                busId = busId,
-                                onCerrarSesion = {
-                                    sessionManager.cerrarSesionBus()
-                                    navController.navigate("seleccion") { popUpTo(0) }
-                                },
-                                onVolver = { navController.popBackStack() }
-                            )
-                        }
+                    composable(
+                        route = "scanner/{busId}",
+                        arguments = listOf(navArgument("busId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val busId = backStackEntry.arguments?.getInt("busId") ?: -1
+
+                        ScannerScreen(
+                            busId = busId,
+                            onCerrarSesion = {
+                                sessionManager.cerrarSesionBus()
+                                navController.navigate("seleccion") { popUpTo(0) { inclusive = true } }
+                            },
+                            onVolver = {
+                                // Volver a selección para ajustar config, pero manteniendo el bus
+                                navController.navigate("seleccion")
+                            }
+                        )
                     }
 
                     composable("historial") {
@@ -179,22 +191,19 @@ fun MainScreen(
     var estaSincronizando by remember { mutableStateOf(false) }
     var datosListos by remember { mutableStateOf(false) }
 
-    // Función para actualizar datos (Llamada al iniciar y por el botón)
     val actualizarDatosAction = {
         scope.launch {
             try {
                 estaSincronizando = true
-                // 1. Obtener Buses
                 val respuestaBuses = RetrofitClient.instance.getBuses().filter { !it.deleted }
                 if (respuestaBuses.isNotEmpty()) {
                     busList = respuestaBuses
                     sessionManager.guardarListaBuses(respuestaBuses)
                 }
 
-                // 2. Obtener Estudiantes y Limpiar previos
                 val alumnosApi = RetrofitClient.instance.getEstudiantesAutorizados()
                 if (alumnosApi.isNotEmpty()) {
-                    db.estudianteDao().borrarTodo() // <--- Limpieza de datos antiguos
+                    db.estudianteDao().borrarTodo()
                     db.estudianteDao().insertarEstudiantes(alumnosApi.map {
                         EstudianteEntity(it.per_id, it.pna_nom, it.pna_apat ?: "", it.pna_amat ?: "", it.token, it.est_sem_id, it.qr_id)
                     })
@@ -241,39 +250,30 @@ fun MainScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text("CONTROL DE ACCESO", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(8.dp))
 
-            // FILA DE ESTADO Y BOTÓN DE REFRESH
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 OfflineStatusBadge(datosListos = datosListos)
                 Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = { actualizarDatosAction() },
-                    enabled = !estaSincronizando,
-                    modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(Icons.Default.Refresh, "Actualizar", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                IconButton(onClick = { actualizarDatosAction() }, enabled = !estaSincronizando) {
+                    Icon(Icons.Default.Refresh, "Actualizar")
                 }
             }
 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                 AnimatedVisibility(visible = !hasCamera || !hasLocation) {
                     Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(modifier = Modifier.padding(16.dp)) {
                             Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error)
                             Spacer(Modifier.width(12.dp))
-                            Text("Faltan permisos de Cámara/GPS.", color = MaterialTheme.colorScheme.onErrorContainer)
+                            Text("Faltan permisos críticos.")
                         }
                     }
                 }
 
-                AnimatedVisibility(visible = estaSincronizando) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp).clip(CircleShape))
-                }
-
                 Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(8.dp), shape = RoundedCornerShape(24.dp)) {
                     Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text("Configuración", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Configuración", fontWeight = FontWeight.Bold)
                         Box(modifier = Modifier.fillMaxWidth()) {
                             OutlinedTextField(
                                 value = selectedBusPatente, onValueChange = {}, readOnly = true,
@@ -283,7 +283,9 @@ fun MainScreen(
                             )
                             Box(modifier = Modifier.matchParentSize().clickable { if (busList.isNotEmpty()) expanded = true })
                             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                busList.forEach { bus ->
+                                val listaUnica = busList.distinctBy { it.bus_patente }
+
+                                listaUnica.forEach { bus ->
                                     DropdownMenuItem(
                                         text = { Text(bus.bus_patente) },
                                         onClick = {
@@ -309,7 +311,7 @@ fun MainScreen(
                 ) {
                     Icon(Icons.Default.QrCodeScanner, null)
                     Spacer(Modifier.width(12.dp))
-                    Text("INICIAR ESCÁNER", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                    Text("INICIAR ESCÁNER", fontWeight = FontWeight.Black)
                 }
 
                 OutlinedButton(
@@ -317,9 +319,7 @@ fun MainScreen(
                     modifier = Modifier.fillMaxWidth().height(65.dp),
                     shape = RoundedCornerShape(20.dp)
                 ) {
-                    Icon(Icons.Default.History, null)
-                    Spacer(Modifier.width(12.dp))
-                    Text("HISTORIAL LOCAL", fontWeight = FontWeight.Bold)
+                    Text("HISTORIAL LOCAL")
                 }
             }
         }

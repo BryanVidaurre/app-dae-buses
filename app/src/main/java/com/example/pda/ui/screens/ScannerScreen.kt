@@ -33,6 +33,8 @@ import com.example.pda.database.SessionManager
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.example.pda.ui.utils.VoiceAssistant
+
 
 @Composable
 fun ScannerScreen(
@@ -42,7 +44,7 @@ fun ScannerScreen(
 ) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
-
+    val voiceAssistant = remember { VoiceAssistant(context) }
     val realBusId = remember {
         if (busId > 0) busId else sessionManager.obtenerBusId()
     }
@@ -56,6 +58,12 @@ fun ScannerScreen(
     val toneGen = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
     var isProcessing by remember { mutableStateOf(false) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            voiceAssistant.stop()
+        }
+    }
 
     fun obtenerUbicacionActual(onLocationReceived: (Double, Double) -> Unit) {
         try {
@@ -218,14 +226,13 @@ fun ScannerScreen(
                                         if (esDuplicado) {
                                             // Lógica de duplicado (ya marcada)
                                             toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                                            voiceAssistant.speak("Registro exitoso")
                                             statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
                                             statusType = "success"
                                             showStatusCard = true
                                             delay(2500)
                                         } else {
-                                            // --- NUEVA LÓGICA DE UBICACIÓN ---
                                             try {
-                                                // Intentamos obtener la última ubicación conocida
                                                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                                                     val lat = location?.latitude ?: 0.0
                                                     val lon = location?.longitude ?: 0.0
@@ -247,6 +254,7 @@ fun ScannerScreen(
 
                                                         db.asistenciaDao().insertarAsistencia(nuevaAsistencia)
                                                         toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                                                        voiceAssistant.speak("Registro exitoso")
                                                         statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
                                                         statusType = "success"
                                                         showStatusCard = true
@@ -266,6 +274,7 @@ fun ScannerScreen(
                                     } else {
                                         // Estudiante no encontrado
                                         toneGen.startTone(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, 500)
+                                        voiceAssistant.speak("Registro Fallido")
                                         statusText = "Estudiante no registrado"
                                         statusType = "error"
                                         showStatusCard = true

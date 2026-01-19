@@ -15,6 +15,7 @@ data class EstudianteAutorizado(
 data class CreateIngresoBusDto(
     val est_sem_id: Int,
     val bus_id: Int,
+    val bus_patente: String,
     val qr_id: Int,
     val fecha_hora: String,
     val latitud: Double,

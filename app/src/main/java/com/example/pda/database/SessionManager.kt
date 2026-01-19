@@ -46,7 +46,8 @@ class SessionManager(context: Context) {
      * Verifica si el conductor ya seleccionó un bus previamente.
      */
     fun estaBusSeleccionado(): Boolean {
-        return obtenerBusId() != -1
+        val id = obtenerBusId()
+        return id != -1 && id != 0 // Asegura que sea un ID positivo válido
     }
 
     /**
@@ -55,8 +56,10 @@ class SessionManager(context: Context) {
      */
     fun cerrarSesionBus() {
         val editor = prefs.edit()
-        editor.clear()
+        editor.remove(KEY_BUS_ID)      // Borra solo el ID
+        editor.remove(KEY_BUS_NOMBRE)  // Borra solo la patente
         editor.apply()
+        // NO usamos clear() para no perder el "buses_cache"
     }
 
     fun guardarListaBuses(buses: List<BusResponse>) {
