@@ -11,9 +11,15 @@ class VoiceAssistant(context: Context) {
     init {
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val result = tts?.setLanguage(Locale("es", "ES"))
+                val localeChile = Locale("es", "CL")
+                val result = tts?.setLanguage(localeChile)
+
                 if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
                     isReady = true
+                    tts?.setSpeechRate(0.9f)
+                    tts?.setPitch(1.1f)
+                } else {
+                    tts?.setLanguage(Locale("es", "ES"))
                 }
             }
         }

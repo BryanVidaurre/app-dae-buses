@@ -55,7 +55,7 @@ fun ScannerScreen(
     var statusText by remember { mutableStateOf("Acerque el código QR") }
     var statusType by remember { mutableStateOf("waiting") }
     var showStatusCard by remember { mutableStateOf(false) }
-    val toneGen = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
+    val toneGen = remember { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70) }
     var isProcessing by remember { mutableStateOf(false) }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
@@ -226,7 +226,10 @@ fun ScannerScreen(
                                         if (esDuplicado) {
                                             // Lógica de duplicado (ya marcada)
                                             toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
-                                            voiceAssistant.speak("Registro exitoso")
+                                            scope.launch {
+                                                delay(200)
+                                                voiceAssistant.speak("Registro exitoso")
+                                            }
                                             statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
                                             statusType = "success"
                                             showStatusCard = true
@@ -237,7 +240,6 @@ fun ScannerScreen(
                                                     val lat = location?.latitude ?: 0.0
                                                     val lon = location?.longitude ?: 0.0
 
-                                                    // Lanzamos una corrutina interna para insertar en la DB
                                                     scope.launch {
                                                         val nuevaAsistencia = AsistenciaEntity(
                                                             fecha_hora = ahora,
@@ -254,7 +256,10 @@ fun ScannerScreen(
 
                                                         db.asistenciaDao().insertarAsistencia(nuevaAsistencia)
                                                         toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
-                                                        voiceAssistant.speak("Registro exitoso")
+                                                        scope.launch {
+                                                            delay(200)
+                                                            voiceAssistant.speak("Registro exitoso")
+                                                        }
                                                         statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
                                                         statusType = "success"
                                                         showStatusCard = true
@@ -274,7 +279,10 @@ fun ScannerScreen(
                                     } else {
                                         // Estudiante no encontrado
                                         toneGen.startTone(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, 500)
-                                        voiceAssistant.speak("Registro Fallido")
+                                        scope.launch {
+                                            delay(200)
+                                            voiceAssistant.speak("Registro fallido")
+                                        }
                                         statusText = "Estudiante no registrado"
                                         statusType = "error"
                                         showStatusCard = true
