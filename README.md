@@ -1,19 +1,19 @@
-# 🚌 PDA UTA - Control de Acceso Estudiantil
+#  PDA UTA - Control de Acceso Estudiantil
 
 Sistema móvil para la gestión de abordaje de buses institucionales mediante códigos QR.
 
-## 🚀 Características Técnicas
+##  Características Técnicas
 * **Detección QR:** Integración con Google ML Kit para escaneo de alta velocidad.
 * **Modo Offline:** Base de datos local Room que permite trabajar sin internet.
 * **Geolocalización:** Captura de coordenadas GPS mediante Fused Location Provider.
 * **Sincronización:** WorkManager para envío de datos en segundo plano cuando hay red.
 
-## 📚 Documentación del Código
+##  Documentación del Código
 Hemos generado la documentación detallada de cada clase y método usando Dokka.
 
-👉 **[Explorar Documentación Técnica Aquí](./docs/index.md)**
+ **[Explorar Documentación Técnica Aquí](./docs/index.md)**
 
-## 🛠️ Arquitectura
+##  Arquitectura
 El proyecto sigue el patrón **MVVM** (Model-View-ViewModel) con Clean Architecture:
 
 1.  **UI (Jetpack Compose):** Pantallas reactivas y modernas.
