@@ -20,7 +20,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -35,7 +34,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.pda.ui.utils.VoiceAssistant
 
-
+/**
+ * Pantalla de Escaneo de Control de Acceso Estudiantil.
+ *
+ * Esta pantalla constituye el núcleo operativo del sistema. Orquesta la interacción entre:
+ * 1. **Visor de Cámara**: Integración de CameraX para detección de QR.
+ * 2. **Geolocalización**: Captura automática de coordenadas GPS en el momento del escaneo.
+ * 3. **Validación Offline**: Consulta inmediata a la base de datos local (Room) para verificar al alumno.
+ * 4. **Feedback Multimodal**: Emisión de beeps, mensajes de voz (TTS) y alertas visuales dinámicas.
+ * 5. **Control de Flujo**: Sistema que evita registros duplicados en un margen de tiempo definido.
+ *
+ * @param busId Identificador del bus para el registro de asistencias.
+ * @param onCerrarSesion Función para limpiar los datos de sesión del bus.
+ * @param onVolver Función para retornar a la pantalla de selección de configuración.
+ */
 @Composable
 fun ScannerScreen(
     busId: Int,
@@ -45,116 +57,67 @@ fun ScannerScreen(
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     val voiceAssistant = remember { VoiceAssistant(context) }
-    val realBusId = remember {
-        if (busId > 0) busId else sessionManager.obtenerBusId()
-    }
+
+    /** Determina el ID del bus basándose en el parámetro o en la sesión guardada */
+    val realBusId = remember { if (busId > 0) busId else sessionManager.obtenerBusId() }
     val busPatente = remember { sessionManager.obtenerBusNombre() ?: "Sin Patente" }
+
     val scope = rememberCoroutineScope()
     val db = AppDatabase.getDatabase(context)
 
+    // Estados de control de la interfaz y procesamiento
     var statusText by remember { mutableStateOf("Acerque el código QR") }
-    var statusType by remember { mutableStateOf("waiting") }
+    var statusType by remember { mutableStateOf("waiting") } // success, error, waiting
     var showStatusCard by remember { mutableStateOf(false) }
-    val toneGen = remember { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70) }
     var isProcessing by remember { mutableStateOf(false) }
+
+    /** Generador de tonos para feedback auditivo inmediato */
+    val toneGen = remember { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70) }
+
+    /** Cliente de ubicación de Google Play Services */
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
+    // Limpieza del motor de voz al destruir el componente
     DisposableEffect(Unit) {
-        onDispose {
-            voiceAssistant.stop()
-        }
+        onDispose { voiceAssistant.stop() }
     }
 
-    fun obtenerUbicacionActual(onLocationReceived: (Double, Double) -> Unit) {
-        try {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                if (location != null) {
-                    onLocationReceived(location.latitude, location.longitude)
-                } else {
-                    // Si no hay última ubicación conocida, enviar 0.0 o manejar error
-                    onLocationReceived(0.0, 0.0)
-                }
-            }
-        } catch (e: SecurityException) {
-            onLocationReceived(0.0, 0.0)
-        }
-    }
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.surface
-                    )
-                )
-            )
+            .background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.surface)))
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // HEADER MEJORADO
+            // --- HEADER DE INFORMACIÓN ---
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shadowElevation = 8.dp
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primary,
-                                    CircleShape
-                                ),
+                            modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.QrCodeScanner,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
+                            Icon(Icons.Default.QrCodeScanner, null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onPrimary)
                         }
                         Column {
-                            Text(
-                                text = "Escáner QR",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(Color(0xFF4CAF50), CircleShape)
-                                )
-                                Text(
-                                    text = busPatente,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                )
+                            Text("Escáner QR", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Box(modifier = Modifier.size(8.dp).background(Color(0xFF4CAF50), CircleShape))
+                                Text(busPatente, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
 
-                    // Botón de volver mejorado
                     FilledIconButton(
                         onClick = onVolver,
                         colors = IconButtonDefaults.filledIconButtonColors(
@@ -163,22 +126,13 @@ fun ScannerScreen(
                         ),
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Volver"
-                        )
+                        Icon(Icons.Default.ArrowBack, "Volver")
                     }
                 }
             }
 
-            // ÁREA DE CÁMARA MEJORADA
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(24.dp)
-            ) {
-                // Marco de escáner con esquinas
+            // --- ÁREA DE CÁMARA Y PROCESAMIENTO ---
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp)) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -201,21 +155,19 @@ fun ScannerScreen(
                         )
                 ) {
                     CameraPreview(
-
-                        modifier = Modifier.size(1.dp),
-
+                        modifier = Modifier.size(1.dp), // Activación silenciosa
                         onQrDetected = { qrCode ->
-
+                            /** Lógica de detección: Bloquea nuevos escaneos mientras uno está en curso */
                             if (!isProcessing) {
                                 isProcessing = true
                                 showStatusCard = false
-
 
                                 scope.launch {
                                     val alumno = db.estudianteDao().buscarPorToken(qrCode)
 
                                     if (alumno != null) {
                                         val ahora = System.currentTimeMillis()
+                                        // Margen de 30 minutos para evitar doble registro por error
                                         val margenTiempo = ahora - (30 * 60 * 1000)
 
                                         val esDuplicado = db.asistenciaDao().existeRegistroReciente(
@@ -224,27 +176,24 @@ fun ScannerScreen(
                                         ) > 0
 
                                         if (esDuplicado) {
-                                            // Lógica de duplicado (ya marcada)
                                             toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
-                                            scope.launch {
-                                                delay(200)
-                                                voiceAssistant.speak("Registro exitoso")
-                                            }
+                                            scope.launch { delay(200); voiceAssistant.speak("Registro exitoso") }
                                             statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
                                             statusType = "success"
                                             showStatusCard = true
                                             delay(2500)
                                         } else {
+                                            // Captura de GPS y persistencia local
                                             try {
                                                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                                                     val lat = location?.latitude ?: 0.0
                                                     val lon = location?.longitude ?: 0.0
 
                                                     scope.launch {
-                                                        val nuevaAsistencia = AsistenciaEntity(
+                                                        db.asistenciaDao().insertarAsistencia(AsistenciaEntity(
                                                             fecha_hora = ahora,
-                                                            latitud = lat,    // Coordenada real capturada
-                                                            longitud = lon,   // Coordenada real capturada
+                                                            latitud = lat,
+                                                            longitud = lon,
                                                             est_sem_id = alumno.est_sem_id,
                                                             bus_id = realBusId,
                                                             qr_id = alumno.qr_id,
@@ -252,44 +201,28 @@ fun ScannerScreen(
                                                             pna_apat = alumno.pna_apat,
                                                             pna_amat = alumno.pna_amat,
                                                             sincronizado = false
-                                                        )
-
-                                                        db.asistenciaDao().insertarAsistencia(nuevaAsistencia)
+                                                        ))
                                                         toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
-                                                        scope.launch {
-                                                            delay(200)
-                                                            voiceAssistant.speak("Registro exitoso")
-                                                        }
+                                                        scope.launch { delay(200); voiceAssistant.speak("Registro exitoso") }
                                                         statusText = "${alumno.pna_nom} ${alumno.pna_apat} ${alumno.pna_amat}"
                                                         statusType = "success"
                                                         showStatusCard = true
                                                     }
-                                                }.addOnFailureListener {
-                                                    // Si el GPS falla, insertamos con 0.0 para no perder el registro
-                                                    scope.launch {
-                                                        // (Aquí podrías repetir la inserción con 0.0)
-                                                    }
-                                                }
-                                            } catch (e: SecurityException) {
-                                                Log.e("GPS", "Sin permisos de ubicación")
-                                            }
-
+                                                }.addOnFailureListener { isProcessing = false }
+                                            } catch (e: SecurityException) { Log.e("GPS", "Error de permisos") }
                                             delay(2500)
                                         }
                                     } else {
-                                        // Estudiante no encontrado
+                                        // Caso: El token no existe en la base de datos descargada
                                         toneGen.startTone(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, 500)
-                                        scope.launch {
-                                            delay(200)
-                                            voiceAssistant.speak("Registro fallido")
-                                        }
+                                        scope.launch { delay(200); voiceAssistant.speak("Registro fallido") }
                                         statusText = "Estudiante no registrado"
                                         statusType = "error"
                                         showStatusCard = true
                                         delay(2000)
                                     }
 
-                                    // Reset de la interfaz
+                                    // Reset para el próximo alumno
                                     statusType = "waiting"
                                     showStatusCard = false
                                     isProcessing = false
@@ -298,221 +231,93 @@ fun ScannerScreen(
                         }
                     )
 
-                    // Overlay de instrucciones
+                    // Overlay instructivo inicial
                     if (statusType == "waiting" && !showStatusCard) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Card(
                                 modifier = Modifier.padding(32.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                elevation = CardDefaults.cardElevation(12.dp),
                                 shape = RoundedCornerShape(24.dp)
                             ) {
-                                Column(
-                                    modifier = Modifier.padding(32.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.QrCodeScanner,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(72.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = "Listo para escanear",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Acerque el código QR a la cámara",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        textAlign = TextAlign.Center,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                    )
+                                Column(modifier = Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    Icon(Icons.Default.QrCodeScanner, null, modifier = Modifier.size(72.dp), tint = MaterialTheme.colorScheme.primary)
+                                    Text("Listo para escanear", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                    Text("Acerque el código QR a la cámara", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                                 }
                             }
                         }
                     }
-
-                    // Esquinas decorativas del marco de escáner
                     CornerOverlays()
                 }
             }
 
-            // TARJETA DE ESTADO MEJORADA
+            // --- TARJETA DE RESULTADO DINÁMICA ---
             AnimatedVisibility(
                 visible = showStatusCard,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
             ) {
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = when (statusType) {
-                            "success" -> Color(0xFFE8F5E9)
-                            "error" -> Color(0xFFFFEBEE)
-                            else -> MaterialTheme.colorScheme.surfaceVariant
-                        }
+                        containerColor = if (statusType == "success") Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    elevation = CardDefaults.cardElevation(8.dp),
                     shape = RoundedCornerShape(24.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(20.dp)
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(
-                                    color = if (statusType == "success")
-                                        Color(0xFF4CAF50).copy(alpha = 0.2f)
-                                    else
-                                        Color(0xFFF44336).copy(alpha = 0.2f),
-                                    shape = CircleShape
-                                ),
+                            modifier = Modifier.size(64.dp).background(
+                                color = if (statusType == "success") Color(0xFF4CAF50).copy(alpha = 0.2f) else Color(0xFFF44336).copy(alpha = 0.2f),
+                                shape = CircleShape
+                            ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (statusType == "success")
-                                    Icons.Default.CheckCircle
-                                else
-                                    Icons.Default.Error,
+                                imageVector = if (statusType == "success") Icons.Default.CheckCircle else Icons.Default.Error,
                                 contentDescription = null,
                                 modifier = Modifier.size(40.dp),
-                                tint = if (statusType == "success")
-                                    Color(0xFF2E7D32)
-                                else
-                                    Color(0xFFC62828)
+                                tint = if (statusType == "success") Color(0xFF2E7D32) else Color(0xFFC62828)
                             )
                         }
-
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (statusType == "success") "AUTORIZADO" else "AVISO",
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = if (statusType == "success")
-                                    Color(0xFF2E7D32)
-                                else
-                                    Color(0xFFC62828)
+                                color = if (statusType == "success") Color(0xFF2E7D32) else Color(0xFFC62828)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = statusText,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Text(statusText, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
+/**
+ * Dibuja las esquinas decorativas que simulan un visor de escáner sobre el área de la cámara.
+ */
 @Composable
 fun BoxScope.CornerOverlays() {
     val cornerSize = 40.dp
     val cornerThickness = 4.dp
     val cornerColor = MaterialTheme.colorScheme.primary
 
-    // Esquina superior izquierda
-    Box(
-        modifier = Modifier
-            .align(Alignment.TopStart)
-            .padding(16.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .width(cornerSize)
-                .height(cornerThickness)
-                .background(cornerColor, RoundedCornerShape(topStart = 4.dp))
-        )
-        Box(
-            modifier = Modifier
-                .width(cornerThickness)
-                .height(cornerSize)
-                .background(cornerColor, RoundedCornerShape(topStart = 4.dp))
-        )
-    }
-
-    // Esquina superior derecha
-    Box(
-        modifier = Modifier
-            .align(Alignment.TopEnd)
-            .padding(16.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .width(cornerSize)
-                .height(cornerThickness)
-                .align(Alignment.TopEnd)
-                .background(cornerColor, RoundedCornerShape(topEnd = 4.dp))
-        )
-        Box(
-            modifier = Modifier
-                .width(cornerThickness)
-                .height(cornerSize)
-                .align(Alignment.TopEnd)
-                .background(cornerColor, RoundedCornerShape(topEnd = 4.dp))
-        )
-    }
-
-    // Esquina inferior izquierda
-    Box(
-        modifier = Modifier
-            .align(Alignment.BottomStart)
-            .padding(16.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .width(cornerSize)
-                .height(cornerThickness)
-                .align(Alignment.BottomStart)
-                .background(cornerColor, RoundedCornerShape(bottomStart = 4.dp))
-        )
-        Box(
-            modifier = Modifier
-                .width(cornerThickness)
-                .height(cornerSize)
-                .align(Alignment.BottomStart)
-                .background(cornerColor, RoundedCornerShape(bottomStart = 4.dp))
-        )
-    }
-
-    // Esquina inferior derecha
-    Box(
-        modifier = Modifier
-            .align(Alignment.BottomEnd)
-            .padding(16.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .width(cornerSize)
-                .height(cornerThickness)
-                .align(Alignment.BottomEnd)
-                .background(cornerColor, RoundedCornerShape(bottomEnd = 4.dp))
-        )
-        Box(
-            modifier = Modifier
-                .width(cornerThickness)
-                .height(cornerSize)
-                .align(Alignment.BottomEnd)
-                .background(cornerColor, RoundedCornerShape(bottomEnd = 4.dp))
-        )
+    listOf(Alignment.TopStart, Alignment.TopEnd, Alignment.BottomStart, Alignment.BottomEnd).forEach { align ->
+        Box(modifier = Modifier.align(align).padding(16.dp)) {
+            // Línea horizontal de la esquina
+            Box(modifier = Modifier
+                .width(cornerSize).height(cornerThickness)
+                .align(align).background(cornerColor, RoundedCornerShape(4.dp)))
+            // Línea vertical de la esquina
+            Box(modifier = Modifier
+                .width(cornerThickness).height(cornerSize)
+                .align(align).background(cornerColor, RoundedCornerShape(4.dp)))
+        }
     }
 }

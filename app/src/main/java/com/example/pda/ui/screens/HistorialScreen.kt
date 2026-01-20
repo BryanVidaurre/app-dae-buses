@@ -28,12 +28,27 @@ import com.example.pda.database.AsistenciaEntity
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class) // Agrega el segundo OptIn
+/**
+ * Pantalla de Historial de Pasajeros.
+ * * Esta interfaz permite al conductor visualizar de manera detallada todos los registros
+ * de abordaje capturados por el dispositivo. Su función principal es proporcionar
+ * transparencia sobre qué datos han sido enviados al servidor y cuáles permanecen
+ * almacenados únicamente de forma local.
+ * * @param db Instancia de la base de datos [AppDatabase] para consultar las asistencias.
+ * @param onBack Callback para navegar hacia la pantalla anterior.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
+    /** * Observa la lista de asistencias desde la base de datos Room.
+     * Al usar [collectAsState], la UI se actualiza automáticamente si un registro se sincroniza en segundo plano.
+     */
     val asistencias by db.asistenciaDao().obtenerTodas().collectAsState(initial = emptyList())
-    val format = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
+    /** Formateador de hora para mostrar la precisión del escaneo en formato HH:mm:ss */
+    val format = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+
+    // Cálculo de métricas para el encabezado
     val sincronizados = asistencias.count { it.sincronizado }
     val pendientes = asistencias.size - sincronizados
 
@@ -50,6 +65,7 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
             )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // SECCIÓN SUPERIOR: Encabezado y Estadísticas
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -61,7 +77,7 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Barra superior con botón de volver
+                    // Barra de navegación superior
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -83,30 +99,28 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Pasajeros ",
+                                text = "Pasajeros",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
-                                text = "${asistencias.size} registros",
+                                text = "${asistencias.size} registros totales",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                             )
                         }
                     }
 
-                    // Estadísticas en tarjetas
+                    // Fila de Tarjetas de Estado (Sincronizados vs Pendientes)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Card de sincronizados
+                        // Métrica: Registros ya subidos a la API central
                         Card(
                             modifier = Modifier.weight(1f),
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color(0xFFE8F5E9)
-                            ),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Row(
@@ -115,43 +129,22 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(
-                                            Color(0xFF4CAF50).copy(alpha = 0.2f),
-                                            CircleShape
-                                        ),
+                                    modifier = Modifier.size(40.dp).background(Color(0xFF4CAF50).copy(alpha = 0.2f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CloudDone,
-                                        contentDescription = null,
-                                        tint = Color(0xFF2E7D32),
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                    Icon(Icons.Default.CloudDone, null, tint = Color(0xFF2E7D32), modifier = Modifier.size(24.dp))
                                 }
                                 Column {
-                                    Text(
-                                        text = sincronizados.toString(),
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF2E7D32)
-                                    )
-                                    Text(
-                                        text = "Subidos",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFF2E7D32).copy(alpha = 0.7f)
-                                    )
+                                    Text(text = sincronizados.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                    Text(text = "Subidos", style = MaterialTheme.typography.bodySmall, color = Color(0xFF2E7D32).copy(alpha = 0.7f))
                                 }
                             }
                         }
 
-                        // Card de pendientes
+                        // Métrica: Registros guardados solo en el teléfono (esperando internet)
                         Card(
                             modifier = Modifier.weight(1f),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                            ),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)),
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Row(
@@ -160,33 +153,14 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(
-                                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
-                                            CircleShape
-                                        ),
+                                    modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Storage,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                    Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
                                 }
                                 Column {
-                                    Text(
-                                        text = pendientes.toString(),
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
-                                    Text(
-                                        text = "Pendientes",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                                    )
+                                    Text(text = pendientes.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text(text = "Pendientes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f))
                                 }
                             }
                         }
@@ -194,35 +168,18 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
                 }
             }
 
-            // LISTA DE ASISTENCIAS
+            // SECCIÓN INFERIOR: Listado dinámico de registros
             if (asistencias.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                        )
-                        Text(
-                            "No hay pasajeros registrados",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                        Text(
-                            "Los escaneos aparecerán aquí",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                        )
+                // Estado vacío: Se muestra cuando no hay datos en la tabla de asistencias
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Icon(Icons.Default.Person, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+                        Text("No hay pasajeros registrados", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                        Text("Los escaneos aparecerán aquí", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                     }
                 }
             } else {
+                // Lista de tarjetas: Representa cada registro individual de entrada
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
@@ -230,59 +187,33 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
                 ) {
                     items(asistencias, key = { it.ingreso_id }) { registro ->
                         Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .animateItemPlacement(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            ),
+                            modifier = Modifier.fillMaxWidth().animateItemPlacement(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                // Icono de usuario
+                                // Avatar genérico para el estudiante
                                 Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            CircleShape
-                                        ),
+                                    modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
+                                    Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                                 }
 
-                                // Información del pasajero
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
+                                // Información de identidad y tiempo
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(
                                         text = "${registro.pna_nom} ${registro.pna_apat} ${registro.pna_amat}",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.AccessTime,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                        )
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Icon(Icons.Default.AccessTime, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                                         Text(
                                             text = format.format(Date(registro.fecha_hora)),
                                             style = MaterialTheme.typography.bodyMedium,
@@ -291,43 +222,27 @@ fun HistorialScreen(db: AppDatabase, onBack: () -> Unit) {
                                     }
                                 }
 
-                                // Indicador de sincronización
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
+                                // Indicador de Sincronización (Nube verde si subió, Disco gris si es local)
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .background(
-                                                color = if (registro.sincronizado)
-                                                    Color(0xFF4CAF50).copy(alpha = 0.15f)
-                                                else
-                                                    MaterialTheme.colorScheme.surfaceVariant,
-                                                shape = CircleShape
-                                            ),
+                                        modifier = Modifier.size(40.dp).background(
+                                            color = if (registro.sincronizado) Color(0xFF4CAF50).copy(alpha = 0.15f)
+                                            else MaterialTheme.colorScheme.surfaceVariant,
+                                            shape = CircleShape
+                                        ),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = if (registro.sincronizado)
-                                                Icons.Default.CloudDone
-                                            else
-                                                Icons.Default.Storage,
+                                            imageVector = if (registro.sincronizado) Icons.Default.CloudDone else Icons.Default.Storage,
                                             contentDescription = null,
-                                            tint = if (registro.sincronizado)
-                                                Color(0xFF2E7D32)
-                                            else
-                                                MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = if (registro.sincronizado) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
                                     Text(
                                         text = if (registro.sincronizado) "Subido" else "Local",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (registro.sincronizado)
-                                            Color(0xFF2E7D32)
-                                        else
-                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (registro.sincronizado) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }

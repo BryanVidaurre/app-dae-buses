@@ -49,12 +49,27 @@ import com.example.pda.workers.SyncWorker
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
+/**
+ * Actividad principal y punto de entrada de la aplicación PDA.
+ *
+ * Esta clase se encarga de:
+ * 1. Gestionar el flujo de navegación principal (Selección, Scanner e Historial).
+ * 2. Solicitar los permisos críticos (Cámara y Ubicación).
+ * 3. Configurar el trabajador de sincronización en segundo plano ([SyncWorker]).
+ * 4. Gestionar la persistencia de la sesión del bus seleccionado.
+ */
 class MainActivity : ComponentActivity() {
 
+    /**
+     * Lanzador para la solicitud de múltiples permisos en tiempo de ejecución.
+     */
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ -> }
 
+    /**
+     * Inicializa la actividad, configura el sistema de navegación y verifica el estado inicial.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val sessionManager = SessionManager(this)
@@ -74,6 +89,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 NavHost(navController = navController, startDestination = startDestination) {
+                    // Pantalla de selección de bus
                     composable("seleccion") {
                         MainScreen(
                             sessionManager = sessionManager,
@@ -87,6 +103,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    // Pantalla del escáner QR
                     composable(
                         route = "scanner/{busId}",
                         arguments = listOf(navArgument("busId") { type = NavType.IntType })
@@ -106,6 +123,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    // Pantalla de historial de registros locales
                     composable("historial") {
                         HistorialScreen(
                             db = AppDatabase.getDatabase(LocalContext.current),
@@ -117,6 +135,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Verifica si los permisos de Cámara y Ubicación precisa han sido otorgados.
+     * Si faltan, los solicita al usuario mediante [requestPermissionLauncher].
+     */
     private fun verificarYSolicitarPermisos() {
         val permissionsNeeded = arrayOf(Manifest.permission.CAMERA, Manifest.permission.ACCESS_FINE_LOCATION)
         val notGranted = permissionsNeeded.filter {
@@ -127,6 +149,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Configura y encola una tarea periódica mediante WorkManager.
+     *
+     * Este trabajador ([SyncWorker]) se ejecuta cada 15 minutos siempre que haya conexión a internet,
+     * encargándose de subir los registros locales acumulados al servidor central.
+     */
     private fun setupSyncWorker() {
         val workerConstraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
         val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
@@ -140,6 +168,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Componente visual que muestra el estado de la base de datos local.
+ *
+ * @param datosListos Indica si hay registros de estudiantes cargados en el dispositivo.
+ */
 @Composable
 fun OfflineStatusBadge(datosListos: Boolean) {
     val colorBase = if (datosListos) Color(0xFF4CAF50) else Color(0xFFF44336)
@@ -169,6 +202,18 @@ fun OfflineStatusBadge(datosListos: Boolean) {
     }
 }
 
+/**
+ * Pantalla principal de configuración y bienvenida.
+ *
+ * Permite al usuario:
+ * - Sincronizar manualmente los datos del servidor (Buses y Estudiantes).
+ * - Seleccionar la patente del bus que se está operando.
+ * - Verificar el cumplimiento de permisos y disponibilidad de datos locales.
+ *
+ * @param sessionManager Gestor de persistencia para la sesión del bus.
+ * @param onIrAlScanner Callback para navegar hacia el escáner con el [busId] seleccionado.
+ * @param onVerHistorial Callback para navegar a la pantalla de historial.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -181,26 +226,36 @@ fun MainScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
+    // Estados de permisos
     var hasCamera by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
     var hasLocation by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) }
 
+    // Estados de configuración de Bus
     var selectedBusId by remember { mutableStateOf<Int?>(sessionManager.obtenerBusId().takeIf { it > 0 }) }
     var selectedBusPatente by remember { mutableStateOf(sessionManager.obtenerBusNombre() ?: "Seleccione un bus") }
     var busList by remember { mutableStateOf(sessionManager.obtenerListaBusesCache()) }
     var expanded by remember { mutableStateOf(false) }
+
+    // Estados de carga
     var estaSincronizando by remember { mutableStateOf(false) }
     var datosListos by remember { mutableStateOf(false) }
 
+    /**
+     * Ejecuta la lógica de sincronización con la API.
+     * Descarga la lista de buses y la base de datos de estudiantes autorizados para modo offline.
+     */
     val actualizarDatosAction = {
         scope.launch {
             try {
                 estaSincronizando = true
+                // Sincronización de Buses
                 val respuestaBuses = RetrofitClient.instance.getBuses().filter { !it.deleted }
                 if (respuestaBuses.isNotEmpty()) {
                     busList = respuestaBuses
                     sessionManager.guardarListaBuses(respuestaBuses)
                 }
 
+                // Sincronización de Estudiantes para validación offline
                 val alumnosApi = RetrofitClient.instance.getEstudiantesAutorizados()
                 if (alumnosApi.isNotEmpty()) {
                     db.estudianteDao().borrarTodo()
@@ -219,6 +274,7 @@ fun MainScreen(
         }
     }
 
+    // Observador de ciclo de vida para re-verificar permisos al volver a la app
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -230,6 +286,7 @@ fun MainScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Verificación inicial de datos locales
     LaunchedEffect(Unit) {
         val locales = db.estudianteDao().obtenerTodosDirecto()
         if (locales.isNotEmpty()) { datosListos = true }
@@ -242,12 +299,15 @@ fun MainScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(20.dp))
+
+            // Logo / Icono Bus
             Box(
                 modifier = Modifier.size(90.dp).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.DirectionsBus, null, modifier = Modifier.size(50.dp), tint = Color.White)
             }
+
             Spacer(modifier = Modifier.height(16.dp))
             Text("CONTROL DE ACCESO", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
 
@@ -261,6 +321,7 @@ fun MainScreen(
             }
 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                // Alerta de permisos faltantes
                 AnimatedVisibility(visible = !hasCamera || !hasLocation) {
                     Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                         Row(modifier = Modifier.padding(16.dp)) {
@@ -271,6 +332,7 @@ fun MainScreen(
                     }
                 }
 
+                // Sección de Configuración de Patente
                 Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(8.dp), shape = RoundedCornerShape(24.dp)) {
                     Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text("Configuración", fontWeight = FontWeight.Bold)
@@ -281,7 +343,9 @@ fun MainScreen(
                                 trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) },
                                 shape = RoundedCornerShape(16.dp)
                             )
+                            // Superposición invisible para disparar el Dropdown
                             Box(modifier = Modifier.matchParentSize().clickable { if (busList.isNotEmpty()) expanded = true })
+
                             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                                 val listaUnica = busList.distinctBy { it.bus_patente }
 
@@ -302,6 +366,7 @@ fun MainScreen(
                 }
             }
 
+            // Acciones principales
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.navigationBarsPadding()) {
                 Button(
                     onClick = { selectedBusId?.let { onIrAlScanner(it) } },
