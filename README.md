@@ -9,7 +9,7 @@ Sistema móvil para la gestión de abordaje de buses institucionales mediante c�
 * **Sincronización:** WorkManager para envío de datos en segundo plano cuando hay red.
 
 ##  Documentación del Código
-Hemos generado la documentación detallada de cada clase y método usando Dokka.
+Para ver la documentación detallada de cada clase y método ve al siguente url:
 
  **[Explorar Documentación Técnica Aquí](./docs/index.md)**
 
