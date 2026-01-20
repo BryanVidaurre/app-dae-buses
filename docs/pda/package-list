@@ -1,0 +1,125 @@
+$dokka.format:gfm-v1
+$dokka.linkExtension:md
+$dokka.location:com.example.pda.api////PointingToDeclaration/pda/com.example.pda.api/index.md
+$dokka.location:com.example.pda.api/ApiService///PointingToDeclaration/pda/com.example.pda.api/-api-service/index.md
+$dokka.location:com.example.pda.api/ApiService/getBuses/#/PointingToDeclaration/pda/com.example.pda.api/-api-service/get-buses.md
+$dokka.location:com.example.pda.api/ApiService/getEstudiantesAutorizados/#/PointingToDeclaration/pda/com.example.pda.api/-api-service/get-estudiantes-autorizados.md
+$dokka.location:com.example.pda.api/ApiService/registrarIngreso/#com.example.pda.models.CreateIngresoBusDto/PointingToDeclaration/pda/com.example.pda.api/-api-service/registrar-ingreso.md
+$dokka.location:com.example.pda.api/ApiService/registrarIngresosBulk/#kotlin.collections.List[com.example.pda.models.CreateIngresoBusDto]/PointingToDeclaration/pda/com.example.pda.api/-api-service/registrar-ingresos-bulk.md
+$dokka.location:com.example.pda.api/RetrofitClient///PointingToDeclaration/pda/com.example.pda.api/-retrofit-client/index.md
+$dokka.location:com.example.pda.api/RetrofitClient/instance/#/PointingToDeclaration/pda/com.example.pda.api/-retrofit-client/instance.md
+$dokka.location:com.example.pda.database.dao////PointingToDeclaration/pda/com.example.pda.database.dao/index.md
+$dokka.location:com.example.pda.database.dao/EstudianteDao///PointingToDeclaration/pda/com.example.pda.database.dao/-estudiante-dao/index.md
+$dokka.location:com.example.pda.database.dao/EstudianteDao/borrarTodo/#/PointingToDeclaration/pda/com.example.pda.database.dao/-estudiante-dao/borrar-todo.md
+$dokka.location:com.example.pda.database.dao/EstudianteDao/buscarPorToken/#kotlin.String/PointingToDeclaration/pda/com.example.pda.database.dao/-estudiante-dao/buscar-por-token.md
+$dokka.location:com.example.pda.database.dao/EstudianteDao/insertarEstudiantes/#kotlin.collections.List[com.example.pda.database.entities.EstudianteEntity]/PointingToDeclaration/pda/com.example.pda.database.dao/-estudiante-dao/insertar-estudiantes.md
+$dokka.location:com.example.pda.database.dao/EstudianteDao/obtenerTodosDirecto/#/PointingToDeclaration/pda/com.example.pda.database.dao/-estudiante-dao/obtener-todos-directo.md
+$dokka.location:com.example.pda.database.entities////PointingToDeclaration/pda/com.example.pda.database.entities/index.md
+$dokka.location:com.example.pda.database.entities/EstudianteEntity///PointingToDeclaration/pda/com.example.pda.database.entities/-estudiante-entity/index.md
+$dokka.location:com.example.pda.database.entities/EstudianteEntity/EstudianteEntity/#kotlin.String#kotlin.String#kotlin.String#kotlin.String#kotlin.String#kotlin.Int#kotlin.Int/PointingToDeclaration/pda/com.example.pda.database.entities/-estudiante-entity/-estudiante-entity.md
+$dokka.location:com.example.pda.database.entities/EstudianteEntity/est_sem_id/#/PointingToDeclaration/pda/com.example.pda.database.entities/-estudiante-entity/est_sem_id.md
+$dokka.location:com.example.pda.database.entities/EstudianteEntity/per_id/#/PointingToDeclaration/pda/com.example.pda.database.entities/-estudiante-entity/per_id.md
+$dokka.location:com.example.pda.database.entities/EstudianteEntity/pna_amat/#/PointingToDeclaration/pda/com.example.pda.database.entities/-estudiante-entity/pna_amat.md
+$dokka.location:com.example.pda.database.entities/EstudianteEntity/pna_apat/#/PointingToDeclaration/pda/com.example.pda.database.entities/-estudiante-entity/pna_apat.md
+$dokka.location:com.example.pda.database.entities/EstudianteEntity/pna_nom/#/PointingToDeclaration/pda/com.example.pda.database.entities/-estudiante-entity/pna_nom.md
+$dokka.location:com.example.pda.database.entities/EstudianteEntity/qr_id/#/PointingToDeclaration/pda/com.example.pda.database.entities/-estudiante-entity/qr_id.md
+$dokka.location:com.example.pda.database.entities/EstudianteEntity/token/#/PointingToDeclaration/pda/com.example.pda.database.entities/-estudiante-entity/token.md
+$dokka.location:com.example.pda.database////PointingToDeclaration/pda/com.example.pda.database/index.md
+$dokka.location:com.example.pda.database/AppDatabase.Companion///PointingToDeclaration/pda/com.example.pda.database/-app-database/-companion/index.md
+$dokka.location:com.example.pda.database/AppDatabase.Companion/getDatabase/#android.content.Context/PointingToDeclaration/pda/com.example.pda.database/-app-database/-companion/get-database.md
+$dokka.location:com.example.pda.database/AppDatabase///PointingToDeclaration/pda/com.example.pda.database/-app-database/index.md
+$dokka.location:com.example.pda.database/AppDatabase/AppDatabase/#/PointingToDeclaration/pda/com.example.pda.database/-app-database/-app-database.md
+$dokka.location:com.example.pda.database/AppDatabase/asistenciaDao/#/PointingToDeclaration/pda/com.example.pda.database/-app-database/asistencia-dao.md
+$dokka.location:com.example.pda.database/AppDatabase/estudianteDao/#/PointingToDeclaration/pda/com.example.pda.database/-app-database/estudiante-dao.md
+$dokka.location:com.example.pda.database/AsistenciaDao///PointingToDeclaration/pda/com.example.pda.database/-asistencia-dao/index.md
+$dokka.location:com.example.pda.database/AsistenciaDao/existeRegistroReciente/#kotlin.Int#kotlin.Long/PointingToDeclaration/pda/com.example.pda.database/-asistencia-dao/existe-registro-reciente.md
+$dokka.location:com.example.pda.database/AsistenciaDao/insertarAsistencia/#com.example.pda.database.AsistenciaEntity/PointingToDeclaration/pda/com.example.pda.database/-asistencia-dao/insertar-asistencia.md
+$dokka.location:com.example.pda.database/AsistenciaDao/marcarSincronizado/#kotlin.Int/PointingToDeclaration/pda/com.example.pda.database/-asistencia-dao/marcar-sincronizado.md
+$dokka.location:com.example.pda.database/AsistenciaDao/obtenerPendientesManual/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-dao/obtener-pendientes-manual.md
+$dokka.location:com.example.pda.database/AsistenciaDao/obtenerTodas/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-dao/obtener-todas.md
+$dokka.location:com.example.pda.database/AsistenciaDao/obtenerTodosDirecto/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-dao/obtener-todos-directo.md
+$dokka.location:com.example.pda.database/AsistenciaEntity///PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/index.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/AsistenciaEntity/#kotlin.Int#kotlin.Long#kotlin.Double#kotlin.Double#kotlin.Int#kotlin.Int#kotlin.Int#kotlin.String#kotlin.String#kotlin.String#kotlin.Boolean/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/-asistencia-entity.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/bus_id/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/bus_id.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/est_sem_id/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/est_sem_id.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/fecha_hora/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/fecha_hora.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/ingreso_id/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/ingreso_id.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/latitud/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/latitud.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/longitud/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/longitud.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/pna_amat/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/pna_amat.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/pna_apat/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/pna_apat.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/pna_nom/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/pna_nom.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/qr_id/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/qr_id.md
+$dokka.location:com.example.pda.database/AsistenciaEntity/sincronizado/#/PointingToDeclaration/pda/com.example.pda.database/-asistencia-entity/sincronizado.md
+$dokka.location:com.example.pda.database/SessionManager///PointingToDeclaration/pda/com.example.pda.database/-session-manager/index.md
+$dokka.location:com.example.pda.database/SessionManager/SessionManager/#android.content.Context/PointingToDeclaration/pda/com.example.pda.database/-session-manager/-session-manager.md
+$dokka.location:com.example.pda.database/SessionManager/cerrarSesionBus/#/PointingToDeclaration/pda/com.example.pda.database/-session-manager/cerrar-sesion-bus.md
+$dokka.location:com.example.pda.database/SessionManager/estaBusSeleccionado/#/PointingToDeclaration/pda/com.example.pda.database/-session-manager/esta-bus-seleccionado.md
+$dokka.location:com.example.pda.database/SessionManager/guardarBus/#kotlin.Int#kotlin.String/PointingToDeclaration/pda/com.example.pda.database/-session-manager/guardar-bus.md
+$dokka.location:com.example.pda.database/SessionManager/guardarListaBuses/#kotlin.collections.List[com.example.pda.models.BusResponse]/PointingToDeclaration/pda/com.example.pda.database/-session-manager/guardar-lista-buses.md
+$dokka.location:com.example.pda.database/SessionManager/obtenerBusId/#/PointingToDeclaration/pda/com.example.pda.database/-session-manager/obtener-bus-id.md
+$dokka.location:com.example.pda.database/SessionManager/obtenerBusNombre/#/PointingToDeclaration/pda/com.example.pda.database/-session-manager/obtener-bus-nombre.md
+$dokka.location:com.example.pda.database/SessionManager/obtenerListaBusesCache/#/PointingToDeclaration/pda/com.example.pda.database/-session-manager/obtener-lista-buses-cache.md
+$dokka.location:com.example.pda.models////PointingToDeclaration/pda/com.example.pda.models/index.md
+$dokka.location:com.example.pda.models/BusResponse///PointingToDeclaration/pda/com.example.pda.models/-bus-response/index.md
+$dokka.location:com.example.pda.models/BusResponse/BusResponse/#kotlin.Int#kotlin.String#kotlin.Boolean/PointingToDeclaration/pda/com.example.pda.models/-bus-response/-bus-response.md
+$dokka.location:com.example.pda.models/BusResponse/bus_id/#/PointingToDeclaration/pda/com.example.pda.models/-bus-response/bus_id.md
+$dokka.location:com.example.pda.models/BusResponse/bus_patente/#/PointingToDeclaration/pda/com.example.pda.models/-bus-response/bus_patente.md
+$dokka.location:com.example.pda.models/BusResponse/deleted/#/PointingToDeclaration/pda/com.example.pda.models/-bus-response/deleted.md
+$dokka.location:com.example.pda.models/CreateIngresoBusDto///PointingToDeclaration/pda/com.example.pda.models/-create-ingreso-bus-dto/index.md
+$dokka.location:com.example.pda.models/CreateIngresoBusDto/CreateIngresoBusDto/#kotlin.Int#kotlin.Int#kotlin.String#kotlin.Int#kotlin.String#kotlin.Double#kotlin.Double/PointingToDeclaration/pda/com.example.pda.models/-create-ingreso-bus-dto/-create-ingreso-bus-dto.md
+$dokka.location:com.example.pda.models/CreateIngresoBusDto/bus_id/#/PointingToDeclaration/pda/com.example.pda.models/-create-ingreso-bus-dto/bus_id.md
+$dokka.location:com.example.pda.models/CreateIngresoBusDto/bus_patente/#/PointingToDeclaration/pda/com.example.pda.models/-create-ingreso-bus-dto/bus_patente.md
+$dokka.location:com.example.pda.models/CreateIngresoBusDto/est_sem_id/#/PointingToDeclaration/pda/com.example.pda.models/-create-ingreso-bus-dto/est_sem_id.md
+$dokka.location:com.example.pda.models/CreateIngresoBusDto/fecha_hora/#/PointingToDeclaration/pda/com.example.pda.models/-create-ingreso-bus-dto/fecha_hora.md
+$dokka.location:com.example.pda.models/CreateIngresoBusDto/latitud/#/PointingToDeclaration/pda/com.example.pda.models/-create-ingreso-bus-dto/latitud.md
+$dokka.location:com.example.pda.models/CreateIngresoBusDto/longitud/#/PointingToDeclaration/pda/com.example.pda.models/-create-ingreso-bus-dto/longitud.md
+$dokka.location:com.example.pda.models/CreateIngresoBusDto/qr_id/#/PointingToDeclaration/pda/com.example.pda.models/-create-ingreso-bus-dto/qr_id.md
+$dokka.location:com.example.pda.models/EstudianteAutorizado///PointingToDeclaration/pda/com.example.pda.models/-estudiante-autorizado/index.md
+$dokka.location:com.example.pda.models/EstudianteAutorizado/EstudianteAutorizado/#kotlin.String#kotlin.String#kotlin.String#kotlin.String#kotlin.String#kotlin.Int#kotlin.Int/PointingToDeclaration/pda/com.example.pda.models/-estudiante-autorizado/-estudiante-autorizado.md
+$dokka.location:com.example.pda.models/EstudianteAutorizado/est_sem_id/#/PointingToDeclaration/pda/com.example.pda.models/-estudiante-autorizado/est_sem_id.md
+$dokka.location:com.example.pda.models/EstudianteAutorizado/per_id/#/PointingToDeclaration/pda/com.example.pda.models/-estudiante-autorizado/per_id.md
+$dokka.location:com.example.pda.models/EstudianteAutorizado/pna_amat/#/PointingToDeclaration/pda/com.example.pda.models/-estudiante-autorizado/pna_amat.md
+$dokka.location:com.example.pda.models/EstudianteAutorizado/pna_apat/#/PointingToDeclaration/pda/com.example.pda.models/-estudiante-autorizado/pna_apat.md
+$dokka.location:com.example.pda.models/EstudianteAutorizado/pna_nom/#/PointingToDeclaration/pda/com.example.pda.models/-estudiante-autorizado/pna_nom.md
+$dokka.location:com.example.pda.models/EstudianteAutorizado/qr_id/#/PointingToDeclaration/pda/com.example.pda.models/-estudiante-autorizado/qr_id.md
+$dokka.location:com.example.pda.models/EstudianteAutorizado/token/#/PointingToDeclaration/pda/com.example.pda.models/-estudiante-autorizado/token.md
+$dokka.location:com.example.pda.ui.screens////PointingToDeclaration/pda/com.example.pda.ui.screens/index.md
+$dokka.location:com.example.pda.ui.screens//CameraPreview/#androidx.compose.ui.Modifier#kotlin.Function1[kotlin.String,kotlin.Unit]/PointingToDeclaration/pda/com.example.pda.ui.screens/-camera-preview.md
+$dokka.location:com.example.pda.ui.screens//CornerOverlays/androidx.compose.foundation.layout.BoxScope#/PointingToDeclaration/pda/com.example.pda.ui.screens/-corner-overlays.md
+$dokka.location:com.example.pda.ui.screens//HistorialScreen/#com.example.pda.database.AppDatabase#kotlin.Function0[kotlin.Unit]/PointingToDeclaration/pda/com.example.pda.ui.screens/-historial-screen.md
+$dokka.location:com.example.pda.ui.screens//ScannerScreen/#kotlin.Int#kotlin.Function0[kotlin.Unit]#kotlin.Function0[kotlin.Unit]/PointingToDeclaration/pda/com.example.pda.ui.screens/-scanner-screen.md
+$dokka.location:com.example.pda.ui.theme////PointingToDeclaration/pda/com.example.pda.ui.theme/index.md
+$dokka.location:com.example.pda.ui.theme//PDATheme/#kotlin.Boolean#kotlin.Boolean#kotlin.Function0[kotlin.Unit]/PointingToDeclaration/pda/com.example.pda.ui.theme/-p-d-a-theme.md
+$dokka.location:com.example.pda.ui.theme//Pink40/#/PointingToDeclaration/pda/com.example.pda.ui.theme/-pink40.md
+$dokka.location:com.example.pda.ui.theme//Pink80/#/PointingToDeclaration/pda/com.example.pda.ui.theme/-pink80.md
+$dokka.location:com.example.pda.ui.theme//Purple40/#/PointingToDeclaration/pda/com.example.pda.ui.theme/-purple40.md
+$dokka.location:com.example.pda.ui.theme//Purple80/#/PointingToDeclaration/pda/com.example.pda.ui.theme/-purple80.md
+$dokka.location:com.example.pda.ui.theme//PurpleGrey40/#/PointingToDeclaration/pda/com.example.pda.ui.theme/-purple-grey40.md
+$dokka.location:com.example.pda.ui.theme//PurpleGrey80/#/PointingToDeclaration/pda/com.example.pda.ui.theme/-purple-grey80.md
+$dokka.location:com.example.pda.ui.theme//Typography/#/PointingToDeclaration/pda/com.example.pda.ui.theme/-typography.md
+$dokka.location:com.example.pda.ui.utils////PointingToDeclaration/pda/com.example.pda.ui.utils/index.md
+$dokka.location:com.example.pda.ui.utils/VoiceAssistant///PointingToDeclaration/pda/com.example.pda.ui.utils/-voice-assistant/index.md
+$dokka.location:com.example.pda.ui.utils/VoiceAssistant/VoiceAssistant/#android.content.Context/PointingToDeclaration/pda/com.example.pda.ui.utils/-voice-assistant/-voice-assistant.md
+$dokka.location:com.example.pda.ui.utils/VoiceAssistant/speak/#kotlin.String/PointingToDeclaration/pda/com.example.pda.ui.utils/-voice-assistant/speak.md
+$dokka.location:com.example.pda.ui.utils/VoiceAssistant/stop/#/PointingToDeclaration/pda/com.example.pda.ui.utils/-voice-assistant/stop.md
+$dokka.location:com.example.pda.workers////PointingToDeclaration/pda/com.example.pda.workers/index.md
+$dokka.location:com.example.pda.workers/SyncWorker///PointingToDeclaration/pda/com.example.pda.workers/-sync-worker/index.md
+$dokka.location:com.example.pda.workers/SyncWorker/SyncWorker/#android.content.Context#androidx.work.WorkerParameters/PointingToDeclaration/pda/com.example.pda.workers/-sync-worker/-sync-worker.md
+$dokka.location:com.example.pda.workers/SyncWorker/doWork/#/PointingToDeclaration/pda/com.example.pda.workers/-sync-worker/do-work.md
+$dokka.location:com.example.pda////PointingToDeclaration/pda/com.example.pda/index.md
+$dokka.location:com.example.pda//MainScreen/#com.example.pda.database.SessionManager#kotlin.Function1[kotlin.Int,kotlin.Unit]#kotlin.Function0[kotlin.Unit]/PointingToDeclaration/pda/com.example.pda/-main-screen.md
+$dokka.location:com.example.pda//OfflineStatusBadge/#kotlin.Boolean/PointingToDeclaration/pda/com.example.pda/-offline-status-badge.md
+$dokka.location:com.example.pda/MainActivity///PointingToDeclaration/pda/com.example.pda/-main-activity/index.md
+$dokka.location:com.example.pda/MainActivity/MainActivity/#/PointingToDeclaration/pda/com.example.pda/-main-activity/-main-activity.md
+com.example.pda
+com.example.pda.api
+com.example.pda.database
+com.example.pda.database.dao
+com.example.pda.database.entities
+com.example.pda.models
+com.example.pda.ui.screens
+com.example.pda.ui.theme
+com.example.pda.ui.utils
+com.example.pda.workers
+

@@ -33,19 +33,13 @@ android {
     }
 }
 
-// CONFIGURACIÓN DE DOKKA GFM
+// En tu build.gradle.kts (módulo app)
 tasks.withType<org.jetbrains.dokka.gradle.DokkaTask>().configureEach {
     dokkaSourceSets {
         named("main") {
-            moduleName.set("PDA UTA - Sistema de Control de Acceso")
-            // Incluye los comentarios de cabecera de los archivos
-            includes.from("preamble.md")
-
-            // Suprimir paquetes internos si los tienes
-            perPackageOption {
-                matchingRegex.set(".*\\.internal.*")
-                suppress.set(true)
-            }
+            // CAMBIA ESTO:
+            moduleName.set("pda")
+            // Esto hará que el link sea [com.example.pda](pda/com.example.pda/index.md)
         }
     }
 }
