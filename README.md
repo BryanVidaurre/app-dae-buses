@@ -21,7 +21,7 @@ Sistema móvil para la gestión de abordaje de buses institucionales mediante c�
 4. **Configurar API local:** la app apunta por defecto a `http://10.0.2.2:3000/` (localhost del host desde el emulador). Si usas un backend remoto, cambia la URL base según el entorno (ver guía de producción).  
 
 ## Guía para llevar a producción
-Si vas a entregar este proyecto a otro equipo para publicarlo, revisa la guía detallada:
+revisa la guía detallada:
 **[Guía de producción](./docs/production.md)**.
 
 ##  Documentación del Código
