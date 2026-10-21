@@ -19,13 +19,6 @@ import java.util.concurrent.Executors
 
 /**
  * Componente de vista previa de cámara con análisis de códigos QR integrado.
- *
- * Este Composable integra la API de [CameraX] dentro de la UI de Jetpack Compose mediante
- * un [AndroidView]. Utiliza [Google ML Kit] para procesar el flujo de video en tiempo real
- * y extraer la información de los códigos QR.
- *
- * @param modifier Modificador de diseño para ajustar el tamaño y posición de la cámara.
- * @param onQrDetected Callback que se dispara cada vez que el escáner identifica un código QR válido.
  */
 @Composable
 fun CameraPreview(
@@ -34,13 +27,8 @@ fun CameraPreview(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-
-    /** Ejecutor de hilo único dedicado para no bloquear el hilo principal (UI) durante el análisis de imagen */
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
-
-    /** * Configuración del cliente de escaneo de Google ML Kit.
-     * Se restringe el formato exclusivamente a [Barcode.FORMAT_QR_CODE] para optimizar la velocidad de lectura.
-     */
+    
     val scanner = remember {
         BarcodeScanning.getClient(
             BarcodeScannerOptions.Builder()
@@ -49,7 +37,14 @@ fun CameraPreview(
         )
     }
 
-    // Integración de vista clásica de Android (PreviewView) en Jetpack Compose
+    // Cleanup resources
+    DisposableEffect(Unit) {
+        onDispose {
+            cameraExecutor.shutdown()
+            scanner.close()
+        }
+    }
+
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
@@ -66,38 +61,29 @@ fun CameraPreview(
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
 
-            /** Configuración del UseCase de Preview: Permite al conductor ver lo que apunta la cámara */
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
 
-            /** * Configuración del UseCase de Análisis de Imagen.
-             * Utiliza [ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST] para evitar retrasos,
-             * descartando frames antiguos si el procesador está ocupado.
-             */
             val imageAnalysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
 
-            // Definición del analizador que conecta CameraX con ML Kit
             imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
                 val mediaImage = imageProxy.image
                 if (mediaImage != null) {
-                    // Convertir el frame de la cámara al formato InputImage de ML Kit
                     val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
 
                     scanner.process(image)
                         .addOnSuccessListener { barcodes ->
                             for (barcode in barcodes) {
-                                // Se extrae el contenido de texto del QR
                                 barcode.rawValue?.let { qrCode ->
-                                    Log.d("PDA_DEBUG", "🔍 QR Detectado por Cámara: $qrCode")
+                                    Log.d("PDA_DEBUG", "🔍 QR Detectado: $qrCode")
                                     onQrDetected(qrCode)
                                 }
                             }
                         }
                         .addOnCompleteListener {
-                            // IMPORTANTE: Liberar el imageProxy para poder recibir el siguiente frame
                             imageProxy.close()
                         }
                 } else {
@@ -106,11 +92,10 @@ fun CameraPreview(
             }
 
             try {
-                // Desvincular cualquier uso previo antes de re-vincular al ciclo de vida actual
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA, // Se utiliza la cámara trasera por defecto
+                    CameraSelector.DEFAULT_BACK_CAMERA,
                     preview,
                     imageAnalysis
                 )
